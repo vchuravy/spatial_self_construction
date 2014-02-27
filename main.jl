@@ -5,6 +5,7 @@
 using MAT
 using NumericExtensions
 using ProgressMeter
+using Datetime
 
 include("config.jl")
 include("drawcircle.jl")
@@ -268,3 +269,19 @@ end # While
 end # function
 
 simulation()
+
+
+matwrite("results/$(now()).mat", {
+    "history_A" => history_A
+    "history_F" => history_F
+    "history_T" => history_T
+    "history_M" => history_M
+    "history_M_pot" => history_M_pot
+    "history_W" => history_W
+    "history_dir" => history_dir
+    "Avec" => Avec
+    "Fvec" => Fvec
+    "Tvec" => Tvec
+    "Mvec" => Mvec
+    "Wvec" => Wvec
+})
