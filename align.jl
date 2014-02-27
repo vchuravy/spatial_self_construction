@@ -8,7 +8,7 @@ function align(conc, dir, attraction, step) #concentration and direction
 
     d1,d2 = size(conc)
     newdir = zeros(d1,d2)
-    dtheta = zeros(d1,d2)
+    # dtheta = zeros(d1,d2)
 
     diff = zeros(3,3)
     potential = zeros(3,3)
@@ -53,22 +53,24 @@ function align(conc, dir, attraction, step) #concentration and direction
             # TODO: Rewrite to be sum(concentration * conc[north:south, west:east] .* potential) if potential[i.j] = 0
             ###
 
-            # dtheta[i, j] += sum(concentration * (conc[north:south, west:east] .* potential)
+            # dtheta = sum(concentration * (conc[north:south, west:east] .* potential)
 
-            dtheta[i, j] += concentration * conc[north,west] * potential[3, 1]
-            dtheta[i, j] += concentration * conc[north,j]    * potential[3, 2]
-            dtheta[i, j] += concentration * conc[north,east] * potential[3, 3]
-            dtheta[i, j] += concentration * conc[i,west]     * potential[2, 1]
+            dtheta = zero(concentration)
 
-            dtheta[i, j] += concentration * conc[i,east]     * potential[2, 3]
-            dtheta[i, j] += concentration * conc[south,west] * potential[1, 1]
-            dtheta[i, j] += concentration * conc[south,j]    * potential[1, 2]
-            dtheta[i, j] += concentration * conc[south,east] * potential[1, 3]
+            dtheta += concentration * conc[north,west] * potential[3, 1]
+            dtheta += concentration * conc[north,j]    * potential[3, 2]
+            dtheta += concentration * conc[north,east] * potential[3, 3]
+            dtheta += concentration * conc[i,west]     * potential[2, 1]
+
+            dtheta += concentration * conc[i,east]     * potential[2, 3]
+            dtheta += concentration * conc[south,west] * potential[1, 1]
+            dtheta += concentration * conc[south,j]    * potential[1, 2]
+            dtheta += concentration * conc[south,east] * potential[1, 3]
 
 
             # update direction for cell
-            dtheta[i,j] = attraction * dtheta[i,j] / 8 # multiply by attraction constant
-            newdir[i,j] = dir[i,j] + dtheta[i,j] * step # update direction with stepsize
+            dtheta = attraction * dtheta / 8 # multiply by attraction constant
+            newdir[i,j] = dir[i,j] + dtheta * step # update direction with stepsize
 
             while newdir[i,j]>pi
                 newdir[i,j] -= pi
