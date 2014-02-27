@@ -4,6 +4,7 @@
 
 using MAT
 using NumericExtensions
+using ProgressMeter
 
 include("config.jl")
 include("drawcircle.jl")
@@ -139,7 +140,8 @@ end
 # Simulation
 ###
 
-t=1
+t = 1
+p = Progress(length(tx), 1)
 
 meanMField = mean(Mfield)
 meanAField = mean(Afield)
@@ -260,4 +262,5 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     end
 
     t += stepIntegration
+    next!(p)
 end
