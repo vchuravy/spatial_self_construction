@@ -3,6 +3,8 @@
 # repulsion on hydrophobe given concentration of hydrophils
 ###
 
+using NumericExtensions
+
 function potential(Afield :: Matrix, Bfield :: Matrix, direction, repulsion, long)
     d1, d2 = size(Afield)
 

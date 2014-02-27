@@ -1,6 +1,9 @@
 ###
 #   transforms concs and dirality
 ###
+
+using NumericExtensions
+
 function diffusion(conc :: Matrix, pot :: Matrix) #concentration and direction
     d1, d2 = size(conc)
 

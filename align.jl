@@ -1,6 +1,9 @@
 ###
 # transforms directionality
 ###
+
+using NumericExtensions
+
 function align(conc, dir, attraction, step) #concentration and direction
 
     d1,d2 = size(conc)

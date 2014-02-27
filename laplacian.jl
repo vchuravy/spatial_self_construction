@@ -1,6 +1,9 @@
 ###
 # Laplacian
 ###
+
+using NumericExtensions
+
 function LaPlacian(Ap :: Matrix)
     d1, d2 = size(Ap)
 

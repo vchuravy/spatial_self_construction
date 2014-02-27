@@ -3,7 +3,7 @@
 ###
 
 using MAT
-using ArgParse
+using NumericExtensions
 
 include("config.jl")
 include("drawcircle.jl")
