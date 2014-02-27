@@ -24,26 +24,22 @@ function align(conc, dir, attraction, step) #concentration and direction
             #diff=zeros(3,3) not necessary since it is going to be completly overwritten each step
             #potential=zeros(3,3)
 
-            diff[3,1] = dir[i,j] - dir[north,west]
-            diff[3,2] = dir[i,j] - dir[north,j   ]
-            diff[3,3] = dir[i,j] - dir[north,east]
-            diff[2,1] = dir[i,j] - dir[i,west    ]
+            direction = dir[i, j]
+
+            diff[3,1] = direction - dir[north,west]
+            diff[3,2] = direction - dir[north,j   ]
+            diff[3,3] = direction - dir[north,east]
+            diff[2,1] = direction - dir[i,west    ]
 
             diff[2,2] = 0
 
-            diff[2,3] = dir[i,j] - dir[i,east    ]
-            diff[1,1] = dir[i,j] - dir[south,west]
-            diff[1,2] = dir[i,j] - dir[south,j   ]
-            diff[1,3] = dir[i,j] - dir[south,east]
+            diff[2,3] = direction - dir[i,east    ]
+            diff[1,1] = direction - dir[south,west]
+            diff[1,2] = direction - dir[south,j   ]
+            diff[1,3] = direction - dir[south,east]
 
             diff[diff .> pi] -= pi
             diff[diff .<= 0] += pi
-
-            # for xx in 1:3
-            #     for yy in 1:3
-            #         potential[yy,xx] = -sin(2*diff[yy,xx])
-            #     end
-            # end
 
             potential = -sin(2*diff)
 
