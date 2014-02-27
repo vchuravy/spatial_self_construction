@@ -10,8 +10,8 @@ function align(conc, dir, attraction, step) #concentration and direction
     diff = zeros(3,3)
     potential = zeros(3,3)
 
-    for i in 1:d1
-        for j in 1:d2
+    for j in 1:d2
+        for i in 1:d1
 
             west  = j == 1  ? d2 : j-1
             east  = j == d2 ? 1  : j+1

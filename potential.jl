@@ -14,8 +14,8 @@ function potential(Afield :: Matrix, Bfield :: Matrix, direction, repulsion, lon
     short = 1
     selfRepulsion = 1*repulsion # making this lower than repulsion allows for neighbors to have relative potential, so increases the chance that the hydrophobe will flow.
 
-    for i in 1:d1
-        for j in 1:d2
+    for j in 1:d2
+        for i in 1:d1
 
             west  = j == 1  ? d2 : j-1
             east  = j == d2 ? 1  : j+1

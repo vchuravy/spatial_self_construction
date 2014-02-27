@@ -6,8 +6,8 @@ function LaPlacian(Ap :: Matrix)
 
     A_lap = zeros(d1, d2)
 
-    for i in 1:d1
-        for j in 1:d2
+    for j in 1:d2
+        for i in 1:d1
 
             west  = j == 1  ? d2 : j-1
             east  = j == d2 ? 1  : j+1

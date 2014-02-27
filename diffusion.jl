@@ -7,8 +7,8 @@ function diffusion(conc :: Matrix, pot :: Matrix) #concentration and direction
     p_move = zeros(d1, d2)
     ge = zeros(3, 3)
 
-    for i in 1:d1
-        for j in 1:d2
+    for j in 1:d2
+        for i in 1:d1
 
             west  = j == 1  ? d2 : j-1
             east  = j == d2 ? 1  : j+1
