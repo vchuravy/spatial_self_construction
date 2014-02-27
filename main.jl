@@ -140,7 +140,6 @@ end
 ###
 # Simulation
 ###
-function simulation()
 
 t = 1
 p = Progress(length(tx), 1)
@@ -266,10 +265,6 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     t += stepIntegration
     next!(p)
 end # While
-end # function
-
-simulation()
-
 
 matwrite("results/$(now()).mat", {
     "history_A" => history_A
