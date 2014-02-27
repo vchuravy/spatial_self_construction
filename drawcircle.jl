@@ -1,4 +1,4 @@
-function drawcircle!(mat, xc, yc, r)
+function drawcircle!(mat :: Matrix, xc, yc, r)
 
     x = 0;
     y = r;
