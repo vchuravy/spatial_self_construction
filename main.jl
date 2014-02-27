@@ -2,6 +2,9 @@
 # Main
 ###
 
+using MAT
+using ArgParse
+
 include("config.jl")
 include("drawcircle.jl")
 include("potential.jl")
@@ -38,6 +41,18 @@ end
 Afield += avgA * A_circ
 
 Wfield -= (Mfield + Afield)
+
+wFile = matopen("data/w4f5.mat")
+Wfield = read(wFile, "Wfield")
+
+aFile = matopen("data/a4f5.mat")
+Afield = read(aFile, "Afield")
+
+mFile = matopen("data/m4f5.mat")
+Mfield = read(mFile, "Mfield")
+
+fFile = matopen("data/f4f5.mat")
+Ffield = read(fFile, "Ffield")
 
 ###
 # directionality initialization
@@ -127,7 +142,7 @@ end
 t=1
 
 meanMField = mean(Mfield)
-meanAField = mean(Afield
+meanAField = mean(Afield)
 
 while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAField < 2) && (meanAField > 0.001)
     ###
@@ -222,7 +237,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     #save values for visualization
     meanAField = mean(Afield)
     meanMField = mean(Mfield)
-    Avec[iround(t/stepIntegration)] = meanAField)
+    Avec[iround(t/stepIntegration)] = meanAField
     Fvec[iround(t/stepIntegration)] = mean(Ffield)
     Tvec[iround(t/stepIntegration)] = mean(Tfield)
     Mvec[iround(t/stepIntegration)] = meanMField
@@ -241,7 +256,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
 
 
     if t % visInterval == 0
-        # TODO
+
     end
 
     t += stepIntegration
