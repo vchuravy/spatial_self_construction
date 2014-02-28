@@ -5,7 +5,7 @@
 
 using NumericExtensions
 
-function potential(Afield :: Matrix, Bfield :: Matrix, direction :: Matrix, repulsion :: Float64, long :: Float64)
+function potential(Afield :: Matrix, Bfield :: Matrix, direction :: Matrix, repulsion :: Real, long :: Real)
     d1, d2 = size(Afield)
 
     # is the anisotropic molecule
@@ -68,7 +68,7 @@ function potential(Afield :: Matrix, Bfield :: Matrix, direction :: Matrix, repu
     return (Apotential,Bpotential)
 end
 
-function area(x :: Float64, long :: Float64, short :: Float64, d :: Float64)
+function area(x :: Real, long :: Real, short :: Real, d :: Real)
     p8 = x * pi/8
     long*short/2 * ( p8 - d - atan((short-long)*sin(2*(p8 - d)) / (short+long + (short-long)*cos(2*(p8 - d)))))
 end
