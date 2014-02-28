@@ -8,6 +8,7 @@ function diffusion(conc :: Matrix, pot :: Matrix) #concentration and direction
     d1, d2 = size(conc)
 
     p_move = zeros(d1, d2)
+    temp = zeros(3, 3)
     ge = zeros(3, 3)
 
     for j in 1:d2
@@ -24,40 +25,59 @@ function diffusion(conc :: Matrix, pot :: Matrix) #concentration and direction
 
             p = pot[i, j]
 
-            ge[1, 1] = -1*(pot[south, west] - p) / (1-exp(pot[south, west] - p))
-            ge[1, 2] = -1*(pot[south, j   ] - p) / (1-exp(pot[south, j   ] - p))
-            ge[1, 3] = -1*(pot[south, east] - p) / (1-exp(pot[south, east] - p))
-            ge[2, 1] = -1*(pot[i    , west] - p) / (1-exp(pot[i    , west] - p))
-            ge[2, 2] = 0;
-            ge[2, 3] = -1*(pot[i    , east] - p) / (1-exp(pot[i    , east] - p))
-            ge[3, 1] = -1*(pot[north, west] - p) / (1-exp(pot[north, west] - p))
-            ge[3, 2] = -1*(pot[north, j   ] - p) / (1-exp(pot[north, j   ] - p))
-            ge[3, 3] = -1*(pot[north, east] - p) / (1-exp(pot[north, east] - p))
+            temp[1, 1] = pot[south, west] - p
+            temp[1, 2] = pot[south, j   ] - p
+            temp[1, 3] = pot[south, east] - p
+            temp[2, 1] = pot[i    , west] - p
+            temp[2, 2] = 0.0
+            temp[2, 3] = pot[i    , east] - p
+            temp[3, 1] = pot[north, west] - p
+            temp[3, 2] = pot[north, j   ] - p
+            temp[3, 3] = pot[north, east] - p
 
-            ge[isnan(ge)] = 1
+            ge[1, 1] = temp[1, 1]
+            ge[1, 2] = temp[1, 2]
+            ge[1, 3] = temp[1, 3]
+            ge[2, 1] = temp[2, 1]
+            ge[2, 2] = 0.0
+            ge[2, 3] = temp[2, 3]
+            ge[3, 1] = temp[3, 1]
+            ge[3, 2] = temp[3, 2]
+            ge[3, 3] = temp[3, 3]
 
-            ge = ge ./ 9.0
+            temp = exp!(temp)
+            temp = negate!(temp)
+            temp = add!(temp, 1.0)
+            ge = divide!(ge, temp)
+            ge[2, 2] = 0
+
+            ge = negate!(ge)
+
+            for idx in 1:9
+                if isnan(ge[idx])
+                    ge[idx] = one(ge)
+                end
+            end
 
             concentration = conc[i,j]
 
             #8-neighbor
             #inflow
-            p_move[i,j] -= concentration * sum(ge)
+            p_move[i,j] -= concentration * sum(ge) / 9.0
 
             #outflow
-            p_move[south,west] += concentration * ge[1, 1]
-            p_move[south,j   ] += concentration * ge[1, 2]
-            p_move[south,east] += concentration * ge[1, 3]
-            p_move[i    ,west] += concentration * ge[2, 1]
+            ge = multiply!(ge, concentration / 9.0)
 
-            p_move[i    ,east] += concentration * ge[2, 3]
-            p_move[north,west] += concentration * ge[3, 1]
-            p_move[north,j   ] += concentration * ge[3, 2]
-            p_move[north,east] += concentration * ge[3, 3]
+            p_move[south,west] += ge[1, 1]
+            p_move[south,j   ] += ge[1, 2]
+            p_move[south,east] += ge[1, 3]
+            p_move[i    ,west] += ge[2, 1]
+
+            p_move[i    ,east] += ge[2, 3]
+            p_move[north,west] += ge[3, 1]
+            p_move[north,j   ] += ge[3, 2]
+            p_move[north,east] += ge[3, 3]
         end
     end
     return p_move
 end
-
-
-
