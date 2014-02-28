@@ -44,12 +44,6 @@ function align(conc, dir, attraction, step) #concentration and direction
 
             concentration = conc[i,j]
 
-            ###
-            # TODO: Rewrite to be sum(concentration * conc[north:south, west:east] .* potential) if potential[i.j] = 0
-            ###
-
-            # dtheta = sum(concentration * (conc[north:south, west:east] .* potential)
-
             dtheta = zero(concentration)
 
             dtheta += concentration * conc[north,west] * potential[3, 1]
@@ -65,14 +59,9 @@ function align(conc, dir, attraction, step) #concentration and direction
 
             # update direction for cell
             dtheta = attraction * dtheta / 8 # multiply by attraction constant
-            newdir[i,j] = dir[i,j] + dtheta * step # update direction with stepsize
+            ndir = dir[i,j] + dtheta * step # update direction with stepsize
 
-            while newdir[i,j]>pi
-                newdir[i,j] -= pi
-            end
-            while newdir[i,j] <= 0
-                newdir[i,j] += pi
-            end
+            newdir[i,j] = mod(ndir, pi)
         end
     end
     return newdir
