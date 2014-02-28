@@ -11,6 +11,7 @@ function align(conc, dir, attraction, step) #concentration and direction
     # dtheta = zeros(d1,d2)
 
     diff = zeros(3,3)
+    tmp = zeros(3,3)
     potential = zeros(3,3)
 
     for j in 1:d2
@@ -20,9 +21,6 @@ function align(conc, dir, attraction, step) #concentration and direction
             east  = j == d2 ? 1  : j+1
             north = i == d1 ? 1  : i+1
             south = i == 1  ? d1 : i-1
-
-            #diff=zeros(3,3) not necessary since it is going to be completly overwritten each step
-            #potential=zeros(3,3)
 
             direction = dir[i, j]
 
@@ -38,10 +36,13 @@ function align(conc, dir, attraction, step) #concentration and direction
             diff[1,2] = direction - dir[south,j   ]
             diff[1,3] = direction - dir[south,east]
 
-            diff[diff .> pi] -= pi
-            diff[diff .<= 0] += pi
+            diff = map!(ModFun(), diff, diff, pi)
+            diff = add!(diff, pi)
+            diff = map!(ModFun(), diff, diff, pi)
 
-            potential = -sin(2*diff)
+            potential = map!(Multiply(), potential, diff, 2)
+            potential = map!(SinFun(), potential, potential)
+            potential = negate!(potential)
 
             concentration = conc[i,j]
 
