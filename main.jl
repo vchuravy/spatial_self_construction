@@ -18,6 +18,7 @@ include("align.jl")
 # set up initial configuration
 ###
 
+function main()
 # initialize membrane fields
 Afield = zeros(Float64, fieldResY, fieldResX)
 Mfield = zeros(Float64, fieldResY, fieldResX)
@@ -207,57 +208,25 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     # reactions
     ##
 
-    row1 = Mfield.^m11 .* Afield.^a11 .* Ffield.^f11 .* Wfield.^w11
-    row2 = Mfield.^m12 .* Afield.^a12 .* Ffield.^f12 .* Wfield.^w12
-    row3 = Mfield.^m21 .* Afield.^a21 .* Ffield.^f21 .* Wfield.^w21
-    row4 = Mfield.^m22 .* Afield.^a22 .* Ffield.^f22 .* Wfield.^w22
-    row5 = Mfield.^m31 .* Afield.^a31 .* Ffield.^f31 .* Wfield.^w31
-    row6 = Mfield.^m32 .* Afield.^a32 .* Ffield.^f32 .* Wfield.^w32
+    row1 = calcRow(Mfield, m11, Afield, a11, Ffield, f11, Wfield, w11)
+    row2 = calcRow(Mfield, m12, Afield, a12, Ffield, f12, Wfield, w12)
+    row3 = calcRow(Mfield, m21, Afield, a21, Ffield, f21, Wfield, w21)
+    row4 = calcRow(Mfield, m22, Afield, a22, Ffield, f22, Wfield, w22)
+    row5 = calcRow(Mfield, m31, Afield, a31, Ffield, f31, Wfield, w31)
+    row6 = calcRow(Mfield, m32, Afield, a32, Ffield, f32, Wfield, w32)
 
-    # dA  = A_lap +
-    #       ((a12-a11)*kf1*Mfield.^m11.*Afield.^a11.*Ffield.^f11.*Wfield.^w11 +
-    #       (a11-a12)*kb1*Mfield.^m12.*Afield.^a12.*Ffield.^f12.*Wfield.^w12)./(1+Mfield) -
-    #       decayA*Afield
+    dA  = add!(subtract!(divide!(
+          addRows(a11, a12, a21, a22, a31, a32, kf1, kb1, kf2, kb2, kf3, kb3, row1, row2, row3, row4, row5, row6),
+          (1+Mfield)), decayA*Afield), A_lap)
 
+    dM  = add!(subtract!(divide!(
+          addRows(m11, m12, m21, m22, m31, m32, kf1, kb1, kf2, kb2, kf3, kb3, row1, row2, row3, row4, row5, row6),
+          (1+Afield)), decayM*Mfield), M_lap)
 
-    dA  = A_lap +
-          (
-            (a12-a11) * kf1 * row1 +
-            (a11-a12) * kb1 * row2 +
-            (a22-a21) * kf2 * row3 +
-            (a21-a22) * kb2 * row4 +
-            (a32-a31) * kf3 * row5 +
-            (a31-a32) * kb3 * row5
-          )./(1+Mfield) - decayA*Afield
+    dW  = add!(addRows(w11, w12, w21, w22, w31, w32, kf1, kb1, kf2, kb2, kf3, kb3, row1, row2, row3, row4, row5, row6), W_lap)
+    dF  = add!(addRows(f11, f12, f21, f22, f31, f32, kf1, kb1, kf2, kb2, kf3, kb3, row1, row2, row3, row4, row5, row6), F_lap)
 
-    dM  = M_lap +
-          (
-            (m12-m11) * kf1 * row1 +
-            (m11-m12) * kb1 * row2 +
-            (m22-m21) * kf2 * row3 +
-            (m21-m22) * kb2 * row4 +
-            (m32-m31) * kf3 * row5 +
-            (m31-m32) * kb3 * row6
-          )./(1+Afield) - decayM*Mfield
-
-    dW  = W_lap +
-          (w12-w11) * kf1 *row1 +
-          (w11-w12) * kb1 *row2 +
-          (w22-w21) * kf2 *row3 +
-          (w21-w22) * kb2 *row4 +
-          (w32-w31) * kf3 *row5 +
-          (w31-w32) * kb3 *row6
-
-    dF  = F_lap +
-          (f12-f11) * kf1 * row1 +
-          (f11-f12) * kb1 * row2 +
-          (f22-f21) * kf2 * row3 +
-          (f21-f22) * kb2 * row4 +
-          (f32-f31) * kf3 * row5 +
-          (f31-f32) * kb3 * row6
-
-    binMask = Frefill .> 0.5
-    dF[binMask] += flowRateF * (saturationF - Ffield[binMask])
+    dF[FrefillBinMask] += flowRateF * (saturationF - Ffield[FrefillBinMask])
 
     dT = 0
 
@@ -297,17 +266,39 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     t += stepIntegration
     next!(p)
 end # While
+# matwrite("results/$(now()).mat", {
+#     "history_A" => history_A,
+#     "history_F" => history_F,
+#     "history_T" => history_T,
+#     "history_M" => history_M,
+#     "history_M_pot" => history_M_pot,
+#     "history_W" => history_W,
+#     "history_dir" => history_dir,
+#     "Avec" => Avec,
+#     "Fvec" => Fvec,
+#     "Tvec" => Tvec,
+#     "Mvec" => Mvec,
+#     "Wvec" => Wvec})
+end #Function
 
-matwrite("results/$(now()).mat", {
-    "history_A" => history_A,
-    "history_F" => history_F,
-    "history_T" => history_T,
-    "history_M" => history_M,
-    "history_M_pot" => history_M_pot,
-    "history_W" => history_W,
-    "history_dir" => history_dir,
-    "Avec" => Avec,
-    "Fvec" => Fvec,
-    "Tvec" => Tvec,
-    "Mvec" => Mvec,
-    "Wvec" => Wvec})
+function calcRow(Mfield, m, Afield, a, Ffield, f, Wfield, w)
+  return multiply!(multiply!(multiply!( Mfield .^ m, Afield .^ a), Ffield .^ f), Wfield .^ w)
+end
+
+function cScale(x, y, k, row)
+  if (k == zero(k)) | (x == y)
+    return zero(row)
+  else
+    return (k * (x-y)) * row
+  end
+end
+
+function addRows(e11, e12, e21, e22, e31, e32, kf1, kb1, kf2, kb2, kf3, kb3, row1, row2, row3, row4, row5, row6)
+  return add!(add!(add!(add!(add!(
+    cScale(e12, e11, kf1, row1),
+    cScale(e11, e12, kb1, row2)),
+    cScale(e22, e21, kf2, row3)),
+    cScale(e21, e22, kb2, row4)),
+    cScale(e32, e31, kf3, row5)),
+    cScale(e31, e32, kb3, row5))
+end

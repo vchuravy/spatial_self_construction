@@ -41,6 +41,7 @@ Frefill = ones(fieldRes, fieldRes)
 frefillX = ceil(fieldRes/2)-mR-mT-fD+1 : ceil(fieldRes/2)+mR+mT+fD
 frefillY = ceil(fieldRes/2)-mR-mT-fD+1 : ceil(fieldRes/2)+mR+mT+fD
 Frefill[frefillX, frefillY] = 0
+FrefillBinMask = Frefill .> 0.5
 
 ###
 #Tear membrane
