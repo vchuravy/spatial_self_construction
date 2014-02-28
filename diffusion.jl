@@ -36,22 +36,24 @@ function diffusion(conc :: Matrix, pot :: Matrix) #concentration and direction
 
             ge[isnan(ge)] = 1
 
+            ge = ge ./ 9.0
+
+            concentration = conc[i,j]
 
             #8-neighbor
             #inflow
-            sm = sum(ge)/9 # ??? avg?
-            p_move[i,j] -= conc[i,j] * sm
+            p_move[i,j] -= concentration * sum(ge)
 
             #outflow
-            p_move[south,west] = p_move[south, west] + conc[i, j] * ge[1, 1] / 9
-            p_move[south,j   ] = p_move[south, j   ] + conc[i, j] * ge[1, 2] / 9
-            p_move[south,east] = p_move[south, east] + conc[i, j] * ge[1, 3] / 9
-            p_move[i    ,west] = p_move[i    , west] + conc[i, j] * ge[2, 1] / 9
+            p_move[south,west] += concentration * ge[1, 1]
+            p_move[south,j   ] += concentration * ge[1, 2]
+            p_move[south,east] += concentration * ge[1, 3]
+            p_move[i    ,west] += concentration * ge[2, 1]
 
-            p_move[i    ,east] = p_move[i    , east] + conc[i, j] * ge[2, 3] / 9
-            p_move[north,west] = p_move[north, west] + conc[i, j] * ge[3, 1] / 9
-            p_move[north,j   ] = p_move[north, j   ] + conc[i, j] * ge[3, 2] / 9
-            p_move[north,east] = p_move[north, east] + conc[i, j] * ge[3, 3] / 9
+            p_move[i    ,east] += concentration * ge[2, 3]
+            p_move[north,west] += concentration * ge[3, 1]
+            p_move[north,j   ] += concentration * ge[3, 2]
+            p_move[north,east] += concentration * ge[3, 3]
         end
     end
     return p_move
