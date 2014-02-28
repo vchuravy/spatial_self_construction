@@ -161,7 +161,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     if t == tearTime2
         tS = iround(tearSize1*fieldRes/fieldSize)
         t0 = iround(fieldRes/2)
-        directionfield[1:fieldRes, t0:tS] = pi .* rand(fieldRes,1)
+        directionfield[1:fieldRes, t0:tS] = pi .* rand(fieldRes, length(t0:tS))
     end
 
 
