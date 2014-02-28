@@ -39,10 +39,6 @@ function potential(Afield :: Matrix, Bfield :: Matrix, direction, repulsion, lon
             a2 = (area3-area2)/lps
             a3 = (area4-area3)/lps
             a4 = (area5-area4)/lps
-            a5 = (area2-area1)/lps
-            a6 = (area3-area2)/lps
-            a7 = (area4-area3)/lps
-            a8 = (area5-area4)/lps
 
             cRepulsion = repulsion * Bfield[i,j]
 
@@ -51,20 +47,20 @@ function potential(Afield :: Matrix, Bfield :: Matrix, direction, repulsion, lon
             Apotential[north,west] += cRepulsion*a3
             Apotential[i,west]     += cRepulsion*a4
 
-            Apotential[south,west] += cRepulsion*a5
-            Apotential[south,j]    += cRepulsion*a6
-            Apotential[south,east] += cRepulsion*a7
-            Apotential[i,east]     += cRepulsion*a8
+            Apotential[south,west] += cRepulsion*a1
+            Apotential[south,j]    += cRepulsion*a2
+            Apotential[south,east] += cRepulsion*a3
+            Apotential[i,east]     += cRepulsion*a4
 
             Bpotential[i,j] += repulsion * ( Afield[i,j]
                                                 + Afield[north,east]  * a1
                                                 + Afield[north,j   ]  * a2
                                                 + Afield[north,west]  * a3
                                                 + Afield[i,west    ]  * a4
-                                                + Afield[south,west]  * a5
-                                                + Afield[south,j   ]  * a6
-                                                + Afield[south,east]  * a7
-                                                + Afield[i,east    ]  * a8
+                                                + Afield[south,west]  * a1
+                                                + Afield[south,j   ]  * a2
+                                                + Afield[south,east]  * a3
+                                                + Afield[i,east    ]  * a4
                                             )
         end
     end
