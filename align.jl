@@ -37,8 +37,6 @@ function align(conc, dir, attraction, step) #concentration and direction
             diff[1,3] = direction - dir[south,east]
 
             diff = map!(ModFun(), diff, diff, pi)
-            diff = add!(diff, pi)
-            diff = map!(ModFun(), diff, diff, pi)
 
             potential = map!(Multiply(), potential, diff, 2)
             potential = map!(SinFun(), potential, potential)
