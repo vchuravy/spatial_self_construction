@@ -5,7 +5,7 @@
 
 using NumericExtensions
 
-function potential(Afield :: Matrix, Bfield :: Matrix, direction, repulsion, long)
+function potential(Afield :: Matrix, Bfield :: Matrix, direction :: Matrix, repulsion :: Float64, long :: Float64)
     d1, d2 = size(Afield)
 
     # is the anisotropic molecule
@@ -13,7 +13,8 @@ function potential(Afield :: Matrix, Bfield :: Matrix, direction, repulsion, lon
     Apotential = zeros(d1,d2)
     Bpotential = zeros(d1,d2)
 
-    short = 1
+    short = 1.0
+
     selfRepulsion = 1*repulsion # making this lower than repulsion allows for neighbors to have relative potential, so increases the chance that the hydrophobe will flow.
 
     for j in 1:d2
@@ -28,11 +29,11 @@ function potential(Afield :: Matrix, Bfield :: Matrix, direction, repulsion, lon
 
             d  = direction[i,j]
 
-            area1 = area(1, long, short, d)
-            area2 = area(3, long, short, d)
-            area3 = area(5, long, short, d)
-            area4 = area(7, long, short, d)
-            area5 = area(9, long, short, d)
+            area1 = area(1.0, long, short, d)
+            area2 = area(3.0, long, short, d)
+            area3 = area(5.0, long, short, d)
+            area4 = area(7.0, long, short, d)
+            area5 = area(9.0, long, short, d)
 
             lps = long*short*pi
             a1 = (area2-area1)/lps
@@ -67,7 +68,7 @@ function potential(Afield :: Matrix, Bfield :: Matrix, direction, repulsion, lon
     return (Apotential,Bpotential)
 end
 
-function area(x, long, short, d)
+function area(x :: Float64, long :: Float64, short :: Float64, d :: Float64)
     p8 = x * pi/8
     long*short/2 * ( p8 - d - atan((short-long)*sin(2*(p8 - d)) / (short+long + (short-long)*cos(2*(p8 - d)))))
 end
