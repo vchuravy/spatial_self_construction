@@ -105,6 +105,8 @@ Fvec = zeros(Float64, 1, vecL)
 Tvec = zeros(Float64, 1, vecL)
 Mvec = zeros(Float64, 1, vecL)
 Wvec = zeros(Float64, 1, vecL)
+DAvec = zeros(Float64, 1, vecL)
+DMvec = zeros(Float64, 1, vecL)
 
 ###
 # Prepare simulation
@@ -246,6 +248,8 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     Tvec[iround(t/stepIntegration)] = mean(Tfield)
     Mvec[iround(t/stepIntegration)] = meanMField
     Wvec[iround(t/stepIntegration)] = mean(Wfield)
+    DAvec[iround(t/stepIntegration)] = sum(dA .* dA)
+    DMvec[iround(t/stepIntegration)] = sum(dM .* dM)
 
     if t in tStoreFields
       history_A[:, :, iHistory] = Afield
@@ -282,7 +286,9 @@ matwrite("results/$(now()).mat", {
     "Fvec" => Fvec,
     "Tvec" => Tvec,
     "Mvec" => Mvec,
-    "Wvec" => Wvec})
+    "Wvec" => Wvec,
+    "DAvec" => DAvec,
+    "DMvec" => DMvec})
 end #Function
 
 function calcRow(Mfield, m, Afield, a, Ffield, f, Wfield, w)
