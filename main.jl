@@ -19,15 +19,15 @@ include("align.jl")
 ###
 
 # initialize membrane fields
-Afield = zeros(fieldResY, fieldResX)
-Mfield = zeros(fieldResY, fieldResX)
-Ffield = avgF * ones(fieldResY, fieldResX)
-Tfield = zeros(fieldResY, fieldResX)
-Wfield = ones(fieldResY, fieldResX)
-directionfield = pi/2 * ones(fieldResY, fieldResX)
+Afield = zeros(Float64, fieldResY, fieldResX)
+Mfield = zeros(Float64, fieldResY, fieldResX)
+Ffield = avgF * ones(Float64, fieldResY, fieldResX)
+Tfield = zeros(Float64, fieldResY, fieldResX)
+Wfield = ones(Float64, fieldResY, fieldResX)
+directionfield = pi/2 * ones(Float64, fieldResY, fieldResX)
 
 # draw membrane circle
-M_circ = zeros(fieldResY, fieldResX)
+M_circ = zeros(Float64, fieldResY, fieldResX)
 
 for r in mR:0.01:(mR+mT-1)
     drawcircle!(M_circ, xc, yc, r)
@@ -35,7 +35,7 @@ end
 Mfield += avgM * M_circ + 0.01* rand(fieldResY, fieldResX)
 
 # fill in with autocatalyst
-A_circ = zeros(fieldResY, fieldResX)
+A_circ = zeros(Float64, fieldResY, fieldResX)
 
 for r in 0:0.01:mR
     drawcircle!(A_circ, xc, yc, r)
@@ -85,13 +85,13 @@ directionfield[isnan(directionfield)] = 0
 tStoreFields = 1:stepVisualization:timeTotal
 
 # create 3d matrices to store field activities
-history_A = zeros(fieldResY, fieldResX, length(tStoreFields))
-history_F = zeros(fieldResY, fieldResX, length(tStoreFields))
-history_T = zeros(fieldResY, fieldResX, length(tStoreFields))
-history_M = zeros(fieldResY, fieldResX, length(tStoreFields))
-history_M_pot = zeros(fieldResY, fieldResX, length(tStoreFields))
-history_W = zeros(fieldResY, fieldResX, length(tStoreFields))
-history_dir = zeros(fieldResY, fieldResX, length(tStoreFields))
+history_A = zeros(Float64, fieldResY, fieldResX, length(tStoreFields))
+history_F = zeros(Float64, fieldResY, fieldResX, length(tStoreFields))
+history_T = zeros(Float64, fieldResY, fieldResX, length(tStoreFields))
+history_M = zeros(Float64, fieldResY, fieldResX, length(tStoreFields))
+history_M_pot = zeros(Float64, fieldResY, fieldResX, length(tStoreFields))
+history_W = zeros(Float64, fieldResY, fieldResX, length(tStoreFields))
+history_dir = zeros(Float64, fieldResY, fieldResX, length(tStoreFields))
 
 # index of the current position in the history matrices
 iHistory = 1
@@ -99,11 +99,11 @@ iHistory = 1
 #vectors to save global concentrations across time
 
 vecL = iround(timeTotal / stepIntegration)
-Avec = zeros(1, vecL)
-Fvec = zeros(1, vecL)
-Tvec = zeros(1, vecL)
-Mvec = zeros(1, vecL)
-Wvec = zeros(1, vecL)
+Avec = zeros(Float64, 1, vecL)
+Fvec = zeros(Float64, 1, vecL)
+Tvec = zeros(Float64, 1, vecL)
+Mvec = zeros(Float64, 1, vecL)
+Wvec = zeros(Float64, 1, vecL)
 
 ###
 # Prepare simulation
@@ -122,10 +122,10 @@ dM = 0
 tx = [0:stepIntegration:timeTotal-stepIntegration]
 
 
-qX = zeros(fieldResX*fieldResY, 1)
-qY = zeros(fieldResX*fieldResY, 1)
-qU = zeros(fieldResX*fieldResY, 1)
-qV = zeros(fieldResX*fieldResY, 1)
+qX = zeros(Float64, fieldResX*fieldResY, 1)
+qY = zeros(Float64, fieldResX*fieldResY, 1)
+qU = zeros(Float64, fieldResX*fieldResY, 1)
+qV = zeros(Float64, fieldResX*fieldResY, 1)
 
 ind=1
 for xx in 1:fieldResX
@@ -135,6 +135,20 @@ for xx in 1:fieldResX
         ind += 1
     end
 end
+
+row1 = zeros(Float64, fieldResY, fieldResX)
+row2 = zeros(Float64, fieldResY, fieldResX)
+row3 = zeros(Float64, fieldResY, fieldResX)
+row4 = zeros(Float64, fieldResY, fieldResX)
+row5 = zeros(Float64, fieldResY, fieldResX)
+row6 = zeros(Float64, fieldResY, fieldResX)
+
+M_pot  = zeros(Float64, fieldResY, fieldResX)
+M_pot1 = zeros(Float64, fieldResY, fieldResX)
+M_pot2 = zeros(Float64, fieldResY, fieldResX)
+
+W_pot = zeros(Float64, fieldResY, fieldResX)
+A_pot = zeros(Float64, fieldResY, fieldResX)
 
 
 ###
@@ -169,8 +183,6 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     # calculate potential based on repulsion %
     ###
 
-    A_pot = zeros(fieldResY, fieldResX)
-
     M_pot1, W_pot = potential(Mfield, Wfield, directionfield, MW_repulsion, long_direction)
     M_pot2, A_pot = potential(Mfield, Afield, directionfield, MA_repulsion, long_direction)
 
@@ -195,37 +207,57 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     # reactions
     ##
 
+    row1 = Mfield.^m11 .* Afield.^a11 .* Ffield.^f11 .* Wfield.^w11
+    row2 = Mfield.^m12 .* Afield.^a12 .* Ffield.^f12 .* Wfield.^w12
+    row3 = Mfield.^m21 .* Afield.^a21 .* Ffield.^f21 .* Wfield.^w21
+    row4 = Mfield.^m22 .* Afield.^a22 .* Ffield.^f22 .* Wfield.^w22
+    row5 = Mfield.^m31 .* Afield.^a31 .* Ffield.^f31 .* Wfield.^w31
+    row6 = Mfield.^m32 .* Afield.^a32 .* Ffield.^f32 .* Wfield.^w32
+
+    # dA  = A_lap +
+    #       ((a12-a11)*kf1*Mfield.^m11.*Afield.^a11.*Ffield.^f11.*Wfield.^w11 +
+    #       (a11-a12)*kb1*Mfield.^m12.*Afield.^a12.*Ffield.^f12.*Wfield.^w12)./(1+Mfield) -
+    #       decayA*Afield
+
+
     dA  = A_lap +
-          ((a12-a11)*kf1*Mfield.^m11.*Afield.^a11.*Ffield.^f11.*Wfield.^w11 +
-          (a11-a12)*kb1*Mfield.^m12.*Afield.^a12.*Ffield.^f12.*Wfield.^w12)./(1+Mfield) -
-          decayA*Afield
+          (
+            (a12-a11) * kf1 * row1 +
+            (a11-a12) * kb1 * row2 +
+            (a22-a21) * kf2 * row3 +
+            (a21-a22) * kb2 * row4 +
+            (a32-a31) * kf3 * row5 +
+            (a31-a32) * kb3 * row5
+          )./(1+Mfield) - decayA*Afield
 
     dM  = M_lap +
-          ((m12-m11)*kf1*Mfield.^m11.*Afield.^a11.*Ffield.^f11.*Wfield.^w11 +
-          (m11-m12)*kb1*Mfield.^m12.*Afield.^a12.*Ffield.^f12.*Wfield.^w12  +
-          (m22-m21)*kf2*Mfield.^m21.*Afield.^a21.*Ffield.^f21.*Wfield.^w21 +
-          (m21-m22)*kb2*Mfield.^m22.*Afield.^a22.*Ffield.^f22.*Wfield.^w22 +
-          (m32-m31)*kf3*Mfield.^m31.*Afield.^a31.*Ffield.^f31.*Wfield.^w31 +
-          (m31-m32)*kb3*Mfield.^m32.*Afield.^a32.*Ffield.^f32.*Wfield.^w32)./(1+Afield) -
-          decayM*Mfield
+          (
+            (m12-m11) * kf1 * row1 +
+            (m11-m12) * kb1 * row2 +
+            (m22-m21) * kf2 * row3 +
+            (m21-m22) * kb2 * row4 +
+            (m32-m31) * kf3 * row5 +
+            (m31-m32) * kb3 * row6
+          )./(1+Afield) - decayM*Mfield
 
     dW  = W_lap +
-          (w12-w11)*kf1*Mfield.^m11.*Afield.^a11.*Ffield.^f11.*Wfield.^w11 +
-          (w11-w12)*kb1*Mfield.^m12.*Afield.^a12.*Ffield.^f12.*Wfield.^w12 +
-          (w22-w21)*kf2*Mfield.^m21.*Afield.^a21.*Ffield.^f21.*Wfield.^w21 +
-          (w21-w22)*kb2*Mfield.^m22.*Afield.^a22.*Ffield.^f22.*Wfield.^w22 +
-          (w32-w31)*kf3*Mfield.^m31.*Afield.^a31.*Ffield.^f31.*Wfield.^w31 +
-          (w31-w32)*kb3*Mfield.^m32.*Afield.^a32.*Ffield.^f32.*Wfield.^w32
+          (w12-w11) * kf1 *row1 +
+          (w11-w12) * kb1 *row2 +
+          (w22-w21) * kf2 *row3 +
+          (w21-w22) * kb2 *row4 +
+          (w32-w31) * kf3 *row5 +
+          (w31-w32) * kb3 *row6
 
     dF  = F_lap +
-          (f12-f11)*kf1*Mfield.^m11.*Afield.^a11.*Ffield.^f11.*Wfield.^w11 +
-          (f11-f12)*kb1*Mfield.^m12.*Afield.^a12.*Ffield.^f12.*Wfield.^w12 +
-          (f22-f21)*kf2*Mfield.^m21.*Afield.^a21.*Ffield.^f21.*Wfield.^w21 +
-          (f21-f22)*kb2*Mfield.^m22.*Afield.^a22.*Ffield.^f22.*Wfield.^w22 +
-          (f32-f31)*kf3*Mfield.^m31.*Afield.^a31.*Ffield.^f31.*Wfield.^w31 +
-          (f31-f32)*kb3*Mfield.^m32.*Afield.^a32.*Ffield.^f32.*Wfield.^w32
+          (f12-f11) * kf1 * row1 +
+          (f11-f12) * kb1 * row2 +
+          (f22-f21) * kf2 * row3 +
+          (f21-f22) * kb2 * row4 +
+          (f32-f31) * kf3 * row5 +
+          (f31-f32) * kb3 * row6
 
-    dF[Frefill .> 0.5] += flowRateF * (saturationF - Ffield[Frefill .> 0.5])
+    binMask = Frefill .> 0.5
+    dF[binMask] += flowRateF * (saturationF - Ffield[binMask])
 
     dT = 0
 

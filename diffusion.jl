@@ -7,9 +7,9 @@ using NumericExtensions
 function diffusion(conc :: Matrix, pot :: Matrix) #concentration and direction
     d1, d2 = size(conc)
 
-    p_move = zeros(d1, d2)
-    temp = zeros(3, 3)
-    ge = zeros(3, 3)
+    p_move = zeros(Float64, d1, d2)
+    temp   = zeros(Float64, 3, 3)
+    ge     = zeros(Float64, 3, 3)
 
     for j in 1:d2
         for i in 1:d1

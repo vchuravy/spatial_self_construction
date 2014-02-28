@@ -7,7 +7,7 @@ using NumericExtensions
 function LaPlacian(Ap :: Matrix)
     d1, d2 = size(Ap)
 
-    A_lap = zeros(d1, d2)
+    A_lap = zeros(Float64, d1, d2)
 
     for j in 1:d2
         for i in 1:d1

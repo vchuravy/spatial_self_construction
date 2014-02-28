@@ -7,12 +7,11 @@ using NumericExtensions
 function align(conc, dir, attraction, step) #concentration and direction
 
     d1,d2 = size(conc)
-    newdir = zeros(d1,d2)
-    # dtheta = zeros(d1,d2)
+    newdir = zeros(Float64, d1,d2)
 
-    diff = zeros(3,3)
-    tmp = zeros(3,3)
-    potential = zeros(3,3)
+    diff = zeros(Float64, 3,3)
+    tmp = zeros(Float64, 3,3)
+    potential = zeros(Float64, 3,3)
 
     for j in 1:d2
         for i in 1:d1

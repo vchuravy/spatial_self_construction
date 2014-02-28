@@ -10,8 +10,8 @@ function potential(Afield :: Matrix, Bfield :: Matrix, direction :: Matrix, repu
 
     # is the anisotropic molecule
 
-    Apotential = zeros(d1,d2)
-    Bpotential = zeros(d1,d2)
+    Apotential = zeros(Float64, d1, d2)
+    Bpotential = zeros(Float64, d1, d2)
 
     short = 1.0
 
