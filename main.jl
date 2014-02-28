@@ -44,17 +44,17 @@ Afield += avgA * A_circ
 
 Wfield -= (Mfield + Afield)
 
-wFile = matopen("data/w4f5.mat")
-Wfield = read(wFile, "Wfield")
+# wFile = matopen("data/w4f5.mat")
+# Wfield = read(wFile, "Wfield")
 
-aFile = matopen("data/a4f5.mat")
-Afield = read(aFile, "Afield")
+# aFile = matopen("data/a4f5.mat")
+# Afield = read(aFile, "Afield")
 
-mFile = matopen("data/m4f5.mat")
-Mfield = read(mFile, "Mfield")
+# mFile = matopen("data/m4f5.mat")
+# Mfield = read(mFile, "Mfield")
 
-fFile = matopen("data/f4f5.mat")
-Ffield = read(fFile, "Ffield")
+# fFile = matopen("data/f4f5.mat")
+# Ffield = read(fFile, "Ffield")
 
 ###
 # directionality initialization
@@ -267,16 +267,15 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
 end # While
 
 matwrite("results/$(now()).mat", {
-    "history_A" => history_A
-    "history_F" => history_F
-    "history_T" => history_T
-    "history_M" => history_M
-    "history_M_pot" => history_M_pot
-    "history_W" => history_W
-    "history_dir" => history_dir
-    "Avec" => Avec
-    "Fvec" => Fvec
-    "Tvec" => Tvec
-    "Mvec" => Mvec
-    "Wvec" => Wvec
-})
+    "history_A" => history_A,
+    "history_F" => history_F,
+    "history_T" => history_T,
+    "history_M" => history_M,
+    "history_M_pot" => history_M_pot,
+    "history_W" => history_W,
+    "history_dir" => history_dir,
+    "Avec" => Avec,
+    "Fvec" => Fvec,
+    "Tvec" => Tvec,
+    "Mvec" => Mvec,
+    "Wvec" => Wvec})
