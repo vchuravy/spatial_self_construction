@@ -69,5 +69,5 @@ main(enableVis=true, enableDirFieldVis=true)
 If you want to load results from previous runs, copy them to the data folder and then call
 
 ```julia
-main(fileName="nameOfFile") #Without the .mat ending
+main(fileName="nameOfFile", loadTime=iStep) #Without the .mat ending, loadTime in the saved interval
 ```

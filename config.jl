@@ -12,7 +12,7 @@ fieldResX = fieldResY
 timeTotal=5000
 stepIntegration=0.5
 visInterval=5 #this is for visualization throughout simulation
-stepVisualization=50
+stepVisualization=10
 #visDelay=0.
 
 ###

@@ -19,7 +19,7 @@ include("align.jl")
 # set up initial configuration
 ###
 
-function main(;enableVis = false, enableDirFieldVis = false, fileName = "")
+function main(;enableVis = false, enableDirFieldVis = false, fileName = "", loadTime = 0)
 # initialize membrane fields
 Afield = zeros(Float64, fieldResY, fieldResX)
 Mfield = zeros(Float64, fieldResY, fieldResX)
@@ -48,10 +48,15 @@ Wfield -= (Mfield + Afield)
 
 if fileName != ""
   dataFile = matopen("data/$(fileName).mat")
-  Wfield = read(dataFile, "Wfield")
-  Afield = read(dataFile, "Afield")
-  Mfield = read(dataFile, "Mfield")
-  Ffield = read(dataFile, "Ffield")
+  histWfield = read(dataFile, "history_W")
+  histAfield = read(dataFile, "history_A")
+  histMfield = read(dataFile, "history_M")
+  histFfield = read(dataFile, "history_F")
+
+  Wfield = histWfield[:,:,loadTime]
+  Afield = histAfield[:,:,loadTime]
+  Mfield = histMfield[:,:,loadTime]
+  Ffield = histFfield[:,:,loadTime]
 end
 
 ###
