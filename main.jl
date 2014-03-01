@@ -248,8 +248,10 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     Tvec[iround(t/stepIntegration)] = mean(Tfield)
     Mvec[iround(t/stepIntegration)] = meanMField
     Wvec[iround(t/stepIntegration)] = mean(Wfield)
-    DAvec[iround(t/stepIntegration)] = sum(dA .^ 2)
-    DMvec[iround(t/stepIntegration)] = sum(dM .^ 2)
+    if enableVis
+      DAvec[iround(t/stepIntegration)] = sumsq(dA)
+      DMvec[iround(t/stepIntegration)] = sumsq(dM)
+    end
 
     if t in tStoreFields
       history_A[:, :, iHistory] = Afield
@@ -264,6 +266,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
 
 
     if enableVis & (t % visInterval == 0)
+      hold(false)
       # Timeseries plot
       subplot(241)
       plot(tx, Avec, "-", linewidth=2)
@@ -282,15 +285,15 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
       title("DMvec")
 
       subplot(245)
-      imshow(Mfield)
+      imshow(Mfield, interpolation = "None")
       title("Mfield")
 
       subplot(246)
-      imshow(Afield)
+      imshow(Afield, interpolation = "None")
       title("Afield")
 
       subplot(247)
-      imshow(Ffield)
+      imshow(Ffield, interpolation = "None")
       title("Ffield")
 
       if enableDirFieldVis
