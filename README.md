@@ -4,8 +4,8 @@ Install Julia from http://julialang.org/ this programm has been tested with v0.3
 
 ### Mac OS X
 
-The other option is to install Julia via homebrew [url]
-After installing homebrew follow the instructions from [url]
+The other option is to install Julia via homebrew [http://brew.sh/]
+After installing homebrew follow the instructions from [https://github.com/staticfloat/homebrew-julia]
 
 I would recommend installing the current devel version with support for apples accelerate
 
@@ -25,8 +25,41 @@ Then install the dependencies:
  - Datetime
  - PyPlot
 
+```julia
 Pkg.update()
 Pkg.add("DEPENDENCYNAME")
+```
 
+### Running the simulator
 
-afterwards you can execute julia main.jl
+#### From the terminal
+
+```bash
+cd path/to/autopoesis
+julia -L main.jl -e 'main()'
+```
+
+#### From the REPL or IJulia
+
+```julia
+require("/full/path/to/autopoesis/main.jl")
+main()
+```
+
+### Visualization
+
+The simulator uses matplotlib via PyPlot.jl for plotting. Since plotting slows the program down significantly it is disable by default.
+
+To enable it call
+
+```julia
+main(enableVis=true)
+```
+
+If you also want to enable the direction field plotting
+
+use
+
+```julia
+main(enableVis=true, enableDirFieldVis=true)
+```
