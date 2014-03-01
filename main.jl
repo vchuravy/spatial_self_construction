@@ -19,7 +19,7 @@ include("align.jl")
 # set up initial configuration
 ###
 
-function main(;enableVis = false, enableDirFieldVis = false)
+function main(;enableVis = false, enableDirFieldVis = false, fileName = "")
 # initialize membrane fields
 Afield = zeros(Float64, fieldResY, fieldResX)
 Mfield = zeros(Float64, fieldResY, fieldResX)
@@ -46,17 +46,13 @@ Afield += avgA * A_circ
 
 Wfield -= (Mfield + Afield)
 
-# wFile = matopen("data/w4f5.mat")
-# Wfield = read(wFile, "Wfield")
-
-# aFile = matopen("data/a4f5.mat")
-# Afield = read(aFile, "Afield")
-
-# mFile = matopen("data/m4f5.mat")
-# Mfield = read(mFile, "Mfield")
-
-# fFile = matopen("data/f4f5.mat")
-# Ffield = read(fFile, "Ffield")
+if fileName != ""
+  dataFile = matopen("data/$(fileName).mat")
+  Wfield = read(dataFile, "Wfield")
+  Afield = read(dataFile, "Afield")
+  Mfield = read(dataFile, "Mfield")
+  Ffield = read(dataFile, "Ffield")
+end
 
 ###
 # directionality initialization

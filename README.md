@@ -63,3 +63,11 @@ use
 ```julia
 main(enableVis=true, enableDirFieldVis=true)
 ```
+
+### Loading Files
+
+If you want to load results from previous runs, copy them to the data folder and then call
+
+```julia
+main(fileName="nameOfFile") #Without the .mat ending
+```
