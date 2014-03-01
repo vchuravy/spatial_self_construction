@@ -286,15 +286,15 @@ while (t <= timeTotal) & (meanMField < 2) & (meanMField > 0.001) & (meanAField <
       title("DMvec")
 
       subplot(245)
-      imshow(Mfield, interpolation = "None")
+      pcolormesh(Mfield)
       title("Mfield")
 
       subplot(246)
-      imshow(Afield, interpolation = "None")
+      pcolormesh(Afield)
       title("Afield")
 
       subplot(247)
-      imshow(Ffield, interpolation = "None")
+      pcolormesh(Ffield)
       title("Ffield")
 
       if enableDirFieldVis
