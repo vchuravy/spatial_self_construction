@@ -6,6 +6,7 @@ using MAT
 using NumericExtensions
 using ProgressMeter
 using Datetime
+using PyPlot
 
 include("config.jl")
 include("drawcircle.jl")
@@ -100,13 +101,13 @@ iHistory = 1
 #vectors to save global concentrations across time
 
 vecL = iround(timeTotal / stepIntegration)
-Avec = zeros(Float64, 1, vecL)
-Fvec = zeros(Float64, 1, vecL)
-Tvec = zeros(Float64, 1, vecL)
-Mvec = zeros(Float64, 1, vecL)
-Wvec = zeros(Float64, 1, vecL)
-DAvec = zeros(Float64, 1, vecL)
-DMvec = zeros(Float64, 1, vecL)
+Avec = zeros(Float64, vecL)
+Fvec = zeros(Float64, vecL)
+Tvec = zeros(Float64, vecL)
+Mvec = zeros(Float64, vecL)
+Wvec = zeros(Float64, vecL)
+DAvec = zeros(Float64, vecL)
+DMvec = zeros(Float64, vecL)
 
 ###
 # Prepare simulation
@@ -153,6 +154,10 @@ M_pot2 = zeros(Float64, fieldResY, fieldResX)
 W_pot = zeros(Float64, fieldResY, fieldResX)
 A_pot = zeros(Float64, fieldResY, fieldResX)
 
+###
+# Prepare vis
+###
+pygui(true)
 
 ###
 # Simulation
@@ -248,8 +253,8 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     Tvec[iround(t/stepIntegration)] = mean(Tfield)
     Mvec[iround(t/stepIntegration)] = meanMField
     Wvec[iround(t/stepIntegration)] = mean(Wfield)
-    DAvec[iround(t/stepIntegration)] = sum(dA .* dA)
-    DMvec[iround(t/stepIntegration)] = sum(dM .* dM)
+    DAvec[iround(t/stepIntegration)] = sum(dA .^ 2)
+    DMvec[iround(t/stepIntegration)] = sum(dM .^ 2)
 
     if t in tStoreFields
       history_A[:, :, iHistory] = Afield
@@ -264,7 +269,42 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
 
 
     if t % visInterval == 0
+      # Timeseries plot
+      subplot(241)
+      plot(tx, Avec, "-", linewidth=2)
+      title("Avec")
 
+      subplot(242)
+      plot(tx, Mvec, "-", linewidth=2)
+      title("Mvec")
+
+      subplot(243)
+      plot(tx, DAvec, "-", linewidth=2)
+      title("DAvec")
+
+      subplot(244)
+      plot(tx, DMvec, "-", linewidth=2)
+      title("DMvec")
+
+      subplot(245)
+      imshow(Mfield)
+      title("Mfield")
+
+      subplot(246)
+      imshow(Afield)
+      title("Afield")
+
+      subplot(247)
+      imshow(Ffield)
+      title("Ffield")
+
+      subplot(248)
+      title("DirectionField")
+
+      U = cos(directionfield)
+      V = sin(directionfield)
+      plt.streamplot([1:fieldResY], [1:fieldResX], U, V)
+      yield()
     end
 
     t += stepIntegration
