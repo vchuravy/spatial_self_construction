@@ -19,7 +19,7 @@ include("align.jl")
 # set up initial configuration
 ###
 
-function main()
+function main(;enableVis = false, enableDirFieldVis = false)
 # initialize membrane fields
 Afield = zeros(Float64, fieldResY, fieldResX)
 Mfield = zeros(Float64, fieldResY, fieldResX)
@@ -155,11 +155,6 @@ W_pot = zeros(Float64, fieldResY, fieldResX)
 A_pot = zeros(Float64, fieldResY, fieldResX)
 
 ###
-# Prepare vis
-###
-pygui(true)
-
-###
 # Simulation
 ###
 
@@ -268,7 +263,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     end
 
 
-    if t % visInterval == 0
+    if enableVis & (t % visInterval == 0)
       # Timeseries plot
       subplot(241)
       plot(tx, Avec, "-", linewidth=2)
@@ -298,12 +293,14 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
       imshow(Ffield)
       title("Ffield")
 
-      subplot(248)
-      title("DirectionField")
+      if enableDirFieldVis
+        subplot(248)
+        title("DirectionField")
 
-      U = cos(directionfield)
-      V = sin(directionfield)
-      plt.streamplot([1:fieldResY], [1:fieldResX], U, V)
+        U = cos(directionfield)
+        V = sin(directionfield)
+        plt.streamplot([1:fieldResY], [1:fieldResX], U, V)
+      end
       yield()
     end
 
