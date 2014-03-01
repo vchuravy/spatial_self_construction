@@ -164,7 +164,7 @@ p = Progress(length(tx), 1)
 meanMField = mean(Mfield)
 meanAField = mean(Afield)
 
-while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAField < 2) && (meanAField > 0.001)
+while (t <= timeTotal) & (meanMField < 2) & (meanMField > 0.001) & (meanAField < 2) & (meanAField > 0.001)
     ###
     # Todo only calc mean once per step
     ###
@@ -310,6 +310,23 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     t += stepIntegration
     next!(p)
 end # While
+
+###
+# Find the reason we terminated
+###
+
+print("Finished because: ")
+if t > timeTotal
+  println("Time done")
+elseif meanMField >= 2
+  println("mean of MField exceeds 2")
+elseif meanMField <= 0.001
+  println("mean of MField is smaller than 0.001")
+elseif meanAField >= 2
+  println("mean of AField exceeds 2")
+elseif meanAField <= 0.001
+  println("mean of AField is smaller than 0.001")
+end
 
 ###
 # Export
