@@ -21,6 +21,7 @@ include("cl/diffusionCL.jl")
 include("cl/addCL.jl")
 include("cl/alignCL.jl")
 include("cl/calcRowCL.jl")
+include("cl/deltaCL.jl")
 
 ###
 # set up initial configuration
@@ -167,13 +168,6 @@ for xx in 1:fieldResX
     end
 end
 
-row1 = zeros(T, fieldResY, fieldResX)
-row2 = zeros(T, fieldResY, fieldResX)
-row3 = zeros(T, fieldResY, fieldResX)
-row4 = zeros(T, fieldResY, fieldResX)
-row5 = zeros(T, fieldResY, fieldResX)
-row6 = zeros(T, fieldResY, fieldResX)
-
 M_pot  = zeros(T, fieldResY, fieldResX)
 W_pot = zeros(T, fieldResY, fieldResX)
 A_pot = zeros(T, fieldResY, fieldResX)
@@ -182,6 +176,11 @@ W_lap = zeros(T, fieldResY, fieldResX)
 A_lap = zeros(T, fieldResY, fieldResX)
 M_lap = zeros(T, fieldResY, fieldResX)
 F_lap = zeros(T, fieldResY, fieldResX)
+
+dA = zeros(T, fieldResY, fieldResX)
+dW = zeros(T, fieldResY, fieldResX)
+dM = zeros(T, fieldResY, fieldResX)
+dF = zeros(T, fieldResY, fieldResX)
 
 ###
 # Simulation
@@ -201,6 +200,7 @@ diffusionProgram = cl.Program(ctx, source=getDiffusionKernel(T)) |> cl.build!
 addProgram = cl.Program(ctx, source=getAddKernel(T)) |> cl.build!
 alignProgram = cl.Program(ctx, source=getAlignKernel(T)) |> cl.build!
 rowProgram = cl.Program(ctx, source=getRowKernel(T)) |> cl.build!
+deltaProgram = cl.Program(ctx, source=getDeltaKernel(T)) |> cl.build!
 
 #create buffers on device
 bufferSize = fieldResX * fieldResY
@@ -229,6 +229,11 @@ buff_row3 = cl.Buffer(T, ctx, :rw, bufferSize)
 buff_row4 = cl.Buffer(T, ctx, :rw, bufferSize)
 buff_row5 = cl.Buffer(T, ctx, :rw, bufferSize)
 buff_row6 = cl.Buffer(T, ctx, :rw, bufferSize)
+
+buff_dW = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_dA = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_dM = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_dF = cl.Buffer(T, ctx, :rw, bufferSize)
 
 while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAField < 2) && (meanAField > 0.001)
     ###
@@ -295,23 +300,37 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     calcRowCL!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row5, m31, a31, f31, w31, fieldResY, fieldResX, ctx, queue, rowProgram)
     calcRowCL!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row6, m32, a32, f32, w32, fieldResY, fieldResX, ctx, queue, rowProgram)
 
-    cl.copy!(queue, row1, buff_row1)
-    cl.copy!(queue, row2, buff_row2)
-    cl.copy!(queue, row3, buff_row3)
-    cl.copy!(queue, row4, buff_row4)
-    cl.copy!(queue, row5, buff_row5)
-    cl.copy!(queue, row6, buff_row6)
+    deltaCL!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dA,
+            r(a12, a11, kf1), r(a11, a12, kb1), r(a22, a21, kf2), r(a21, a22, kb2), r(a32, a31, kf3), r(a31, a32, kb3),
+            fieldResY, fieldResX, ctx, queue, deltaProgram)
 
-    dA  = add!(subtract!(divide!(
-          addRows(a11, a12, a21, a22, a31, a32, kf1, kb1, kf2, kb2, kf3, kb3, row1, row2, row3, row4, row5, row6),
-          (1+Mfield)), decayA*Afield), A_lap)
+    cl.copy!(queue, dA, buff_dA)
 
-    dM  = add!(subtract!(divide!(
-          addRows(m11, m12, m21, m22, m31, m32, kf1, kb1, kf2, kb2, kf3, kb3, row1, row2, row3, row4, row5, row6),
-          (1+Afield)), decayM*Mfield), M_lap)
+    dA = add!(subtract!(divide!(dA, (1+Mfield)),decayA*Afield), A_lap)
 
-    dW  = add!(addRows(w11, w12, w21, w22, w31, w32, kf1, kb1, kf2, kb2, kf3, kb3, row1, row2, row3, row4, row5, row6), W_lap)
-    dF  = add!(addRows(f11, f12, f21, f22, f31, f32, kf1, kb1, kf2, kb2, kf3, kb3, row1, row2, row3, row4, row5, row6), F_lap)
+    deltaCL!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dM,
+            r(m12, m11, kf1), r(m11, m12, kb1), r(m22, m21, kf2), r(m21, m22, kb2), r(m32, m31, kf3), r(m31, m32, kb3),
+            fieldResY, fieldResX, ctx, queue, deltaProgram)
+
+    cl.copy!(queue, dM, buff_dM)
+
+    dM = add!(subtract!(divide!(dM, (1+Afield)),decayM*Mfield), M_lap)
+
+    deltaCL!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dW,
+            r(w12, w11, kf1), r(w11, w12, kb1), r(w22, w21, kf2), r(w21, w22, kb2), r(w32, w31, kf3), r(w31, w32, kb3),
+            fieldResY, fieldResX, ctx, queue, deltaProgram)
+
+    addCL!(buff_wlap, buff_dW, buff_dW, fieldResY, fieldResX, ctx, queue, addProgram)
+
+    cl.copy!(queue, dW, buff_dW)
+
+    deltaCL!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dF,
+            r(f12, f11, kf1), r(f11, f12, kb1), r(f22, f21, kf2), r(f21, f22, kb2), r(f32, f31, kf3), r(f31, f32, kb3),
+            fieldResY, fieldResX, ctx, queue, deltaProgram)
+
+    addCL!(buff_flap, buff_dF, buff_dF, fieldResY, fieldResX, ctx, queue, addProgram)
+
+    cl.copy!(queue, dF, buff_dF)
 
     dF[FrefillBinMask] += flowRateF * (saturationF - Ffield[FrefillBinMask])
 
@@ -433,24 +452,10 @@ matwrite("results/$(now()).mat", {
     "DMvec" => DMvec})
 end #Function
 
-function calcRow(Mfield, m, Afield, a, Ffield, f, Wfield, w)
-  return multiply!(multiply!(multiply!( Mfield .^ m, Afield .^ a), Ffield .^ f), Wfield .^ w)
-end
-
-function cScale(x, y, k, row)
-  if (k == zero(k)) | (x == y)
-    return zero(row)
+function r(x, y, k)
+  if (k == zero(k)) || (x == y)
+    return zero(k)
   else
-    return (k * (x-y)) * row
+    return (k * (x-y))
   end
-end
-
-function addRows(e11, e12, e21, e22, e31, e32, kf1, kb1, kf2, kb2, kf3, kb3, row1, row2, row3, row4, row5, row6)
-  return add!(add!(add!(add!(add!(
-    cScale(e12, e11, kf1, row1),
-    cScale(e11, e12, kb1, row2)),
-    cScale(e22, e21, kf2, row3)),
-    cScale(e21, e22, kb2, row4)),
-    cScale(e32, e31, kf3, row5)),
-    cScale(e31, e32, kb3, row5))
 end
