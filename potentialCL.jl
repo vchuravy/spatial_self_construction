@@ -100,7 +100,7 @@ end
 function potentialCL!{T <: FloatingPoint}(
     a_buff :: Buffer{T}, b_buff :: Buffer{T}, d_buff :: Buffer{T},
     aout_buff :: Buffer{T}, bout_buff :: Buffer{T},
-    repulsion :: T, long :: T, d1 :: Int64, d2 ::Int64,
+    repulsion :: T, long :: T, d1 :: Int64, d2 :: Int64,
     ctx :: Context, queue :: CmdQueue, program :: Program)
 
     zeroArray = zeros(T, d1, d2)

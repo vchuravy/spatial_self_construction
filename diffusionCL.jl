@@ -24,8 +24,6 @@ function getDiffusionKernel{T <: FloatingPoint}(::Type{T})
                       const int D1,
                       const int D2) {
 
-
-
         int i = get_global_id(0);
         int j = get_global_id(1);
         int west = j-1;
@@ -96,7 +94,7 @@ end
 function diffusionCL!{T <: FloatingPoint}(
     a_buff :: Buffer{T}, b_buff :: Buffer{T},
     out_buff :: Buffer{T},
-    d1 :: Int64, d2 ::Int64,
+    d1 :: Int64, d2 :: Int64,
     ctx :: Context, queue :: CmdQueue, program :: Program)
 
     cl.copy!(queue, out_buff, zeros(T, d1, d2))

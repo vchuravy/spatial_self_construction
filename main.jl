@@ -19,6 +19,8 @@ include("align.jl")
 include("potentialCL.jl")
 include("diffusionCL.jl")
 include("addCL.jl")
+include("alignCL.jl")
+include("calcRowCL.jl")
 
 ###
 # set up initial configuration
@@ -197,6 +199,8 @@ meanAField = mean(Afield)
 potentialProgram = cl.Program(ctx, source=getPotentialKernel(T)) |> cl.build!
 diffusionProgram = cl.Program(ctx, source=getDiffusionKernel(T)) |> cl.build!
 addProgram = cl.Program(ctx, source=getAddKernel(T)) |> cl.build!
+alignProgram = cl.Program(ctx, source=getAlignKernel(T)) |> cl.build!
+rowProgram = cl.Program(ctx, source=getRowKernel(T)) |> cl.build!
 
 #create buffers on device
 bufferSize = fieldResX * fieldResY
@@ -211,10 +215,20 @@ buff_mfield = cl.Buffer(T, ctx, :rw, bufferSize)
 buff_wfield = cl.Buffer(T, ctx, :rw, bufferSize)
 buff_afield = cl.Buffer(T, ctx, :rw, bufferSize)
 buff_dfield = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_ndfield = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_ffield = cl.Buffer(T, ctx, :rw, bufferSize)
 
 buff_wlap = cl.Buffer(T, ctx, :rw, bufferSize)
 buff_alap = cl.Buffer(T, ctx, :rw, bufferSize)
 buff_mlap = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_flap = cl.Buffer(T, ctx, :rw, bufferSize)
+
+buff_row1 = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_row2 = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_row3 = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_row4 = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_row5 = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_row6 = cl.Buffer(T, ctx, :rw, bufferSize)
 
 while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAField < 2) && (meanAField > 0.001)
     ###
@@ -239,6 +253,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     cl.copy!(queue, buff_mfield, Mfield)
     cl.copy!(queue, buff_wfield, Wfield)
     cl.copy!(queue, buff_afield, Afield)
+    cl.copy!(queue, buff_ffield, Ffield)
     cl.copy!(queue, buff_dfield, directionfield)
 
     potentialCL!(buff_mfield, buff_wfield, buff_dfield, buff_mpot1, buff_wpot, MW_repulsion, long_direction, fieldResY, fieldResX, ctx, queue, potentialProgram)
@@ -260,24 +275,32 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
 
     multiply!(W_lap, diffW)
     multiply!(A_lap, diffA)
+    multiply!(M_lap, diffM)
 
     # Laplacian for diffusion
-    F_lap = diffF * LaPlacian(Ffield);
-    T_lap = diffF * LaPlacian(Tfield);
+    F_lap = diffF * LaPlacian(Ffield)
+    T_lap = diffT * LaPlacian(Tfield)
 
     # update direction field based on alignment
-    directionfield = align(Mfield, directionfield, attractionRate, stepIntegration)
-
+    alignCL!(buff_mfield, buff_dfield, buff_ndfield, attractionRate, stepIntegration, fieldResY, fieldResX, ctx, queue, alignProgram)
+    cl.copy!(queue, directionfield, buff_ndfield)
     ###
     # reactions
     ##
 
-    row1 = calcRow(Mfield, m11, Afield, a11, Ffield, f11, Wfield, w11)
-    row2 = calcRow(Mfield, m12, Afield, a12, Ffield, f12, Wfield, w12)
-    row3 = calcRow(Mfield, m21, Afield, a21, Ffield, f21, Wfield, w21)
-    row4 = calcRow(Mfield, m22, Afield, a22, Ffield, f22, Wfield, w22)
-    row5 = calcRow(Mfield, m31, Afield, a31, Ffield, f31, Wfield, w31)
-    row6 = calcRow(Mfield, m32, Afield, a32, Ffield, f32, Wfield, w32)
+    calcRowCL!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row1, m11, a11, f11, w11, fieldResY, fieldResX, ctx, queue, rowProgram)
+    calcRowCL!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row2, m12, a12, f12, w12, fieldResY, fieldResX, ctx, queue, rowProgram)
+    calcRowCL!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row3, m21, a21, f21, w21, fieldResY, fieldResX, ctx, queue, rowProgram)
+    calcRowCL!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row4, m22, a22, f22, w22, fieldResY, fieldResX, ctx, queue, rowProgram)
+    calcRowCL!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row5, m31, a31, f31, w31, fieldResY, fieldResX, ctx, queue, rowProgram)
+    calcRowCL!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row6, m32, a32, f32, w32, fieldResY, fieldResX, ctx, queue, rowProgram)
+
+    cl.copy!(queue, row1, buff_row1)
+    cl.copy!(queue, row2, buff_row2)
+    cl.copy!(queue, row3, buff_row3)
+    cl.copy!(queue, row4, buff_row4)
+    cl.copy!(queue, row5, buff_row5)
+    cl.copy!(queue, row6, buff_row6)
 
     dA  = add!(subtract!(divide!(
           addRows(a11, a12, a21, a22, a31, a32, kf1, kb1, kf2, kb2, kf3, kb3, row1, row2, row3, row4, row5, row6),

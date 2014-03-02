@@ -35,7 +35,7 @@ end
 function addCL!{T <: FloatingPoint}(
     a_buff :: Buffer{T}, b_buff :: Buffer{T},
     out_buff :: Buffer{T},
-    d1 :: Int64, d2 ::Int64,
+    d1 :: Int64, d2 :: Int64,
     ctx :: Context, queue :: CmdQueue, program :: Program)
 
     k = cl.Kernel(program, "add")
