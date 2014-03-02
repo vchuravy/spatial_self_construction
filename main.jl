@@ -14,6 +14,7 @@ include("potential.jl")
 include("diffusion.jl")
 include("laplacian.jl")
 include("align.jl")
+include("utils.jl")
 
 ###
 # set up initial configuration
