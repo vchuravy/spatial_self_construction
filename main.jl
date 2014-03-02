@@ -12,15 +12,15 @@ const cl = OpenCL
 
 include("config.jl")
 include("drawcircle.jl")
-include("potential.jl")
-include("diffusion.jl")
+#include("potential.jl")
+#include("diffusion.jl")
 include("laplacian.jl")
-include("align.jl")
-include("potentialCL.jl")
-include("diffusionCL.jl")
-include("addCL.jl")
-include("alignCL.jl")
-include("calcRowCL.jl")
+#include("align.jl")
+include("cl/potentialCL.jl")
+include("cl/diffusionCL.jl")
+include("cl/addCL.jl")
+include("cl/alignCL.jl")
+include("cl/calcRowCL.jl")
 
 ###
 # set up initial configuration
