@@ -165,7 +165,7 @@ p = Progress(length(tx), 1)
 meanMField = mean(Mfield)
 meanAField = mean(Afield)
 
-while (t <= timeTotal) & (meanMField < 2) & (meanMField > 0.001) & (meanAField < 2) & (meanAField > 0.001)
+while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAField < 2) && (meanAField > 0.001)
     ###
     # Todo only calc mean once per step
     ###
@@ -266,7 +266,7 @@ while (t <= timeTotal) & (meanMField < 2) & (meanMField > 0.001) & (meanAField <
     end
 
 
-    if enableVis & (t % visInterval == 0)
+    if enableVis && (t % visInterval == 0)
       hold(false)
       # Timeseries plot
       subplot(241)
