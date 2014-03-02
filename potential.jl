@@ -25,8 +25,6 @@ function potential(Afield :: Matrix, Bfield :: Matrix, direction :: Matrix, repu
             north = i == d1 ? 1  : i+1
             south = i == 1  ? d1 : i-1
 
-            Apotential[i,j] += Bfield[i,j] * selfRepulsion
-
             d  = direction[i,j]
 
             area1 = area(1.0, long, short, d)
@@ -43,6 +41,7 @@ function potential(Afield :: Matrix, Bfield :: Matrix, direction :: Matrix, repu
 
             cRepulsion = repulsion * Bfield[i,j]
 
+            Apotential[i,j] += cRepulsion
             Apotential[north,east] += cRepulsion*a1
             Apotential[north,j]    += cRepulsion*a2
             Apotential[north,west] += cRepulsion*a3

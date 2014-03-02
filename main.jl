@@ -14,7 +14,7 @@ include("potential.jl")
 include("diffusion.jl")
 include("laplacian.jl")
 include("align.jl")
-include("utils.jl")
+include("potentialCL.jl")
 
 ###
 # set up initial configuration
@@ -187,9 +187,15 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     ###
     # calculate potential based on repulsion %
     ###
+    mfield = convert(Array{Float32}, Mfield)
+    wfield = convert(Array{Float32}, Wfield)
+    afield = convert(Array{Float32}, Wfield)
+    dfield = convert(Array{Float32}, directionfield)
 
-    M_pot1, W_pot = potential(Mfield, Wfield, directionfield, MW_repulsion, long_direction)
-    M_pot2, A_pot = potential(Mfield, Afield, directionfield, MA_repulsion, long_direction)
+    #@time potential(Mfield, Wfield, directionfield, MW_repulsion, long_direction)
+    M_pot1, W_pot = potentialCL(mfield, wfield, dfield, MW_repulsion, long_direction)
+    #M_pot1, W_pot = potential(Mfield, Wfield, directionfield, MW_repulsion, long_direction)
+    M_pot2, A_pot = potentialCL(mfield, afield, dfield, MA_repulsion, long_direction)
 
     M_pot = M_pot1 + M_pot2
 

@@ -49,13 +49,13 @@ function diffusion(conc :: Matrix, pot :: Matrix) #concentration and direction
             temp = negate!(temp)
             temp = add!(temp, 1.0)
             ge = divide!(ge, temp)
-            ge[2, 2] = 0
+            ge[2, 2] = 0.0
 
             ge = negate!(ge)
 
             for idx in 1:9
                 if isnan(ge[idx])
-                    ge[idx] = one(ge)
+                    ge[idx] = 1.0
                 end
             end
 
