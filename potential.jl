@@ -69,5 +69,5 @@ end
 
 function area(x :: Real, long :: Real, short :: Real, d :: Real)
     p8 = x * pi/8
-    long*short/2 * ( p8 - d - atan((short-long)*sin(2*(p8 - d)) / (short+long + (short-long)*cos(2*(p8 - d)))))
+    return long*short/2 * ( p8 - d - atan((short-long)*sin(2*(p8 - d)) / (short+long + (short-long)*cos(2*(p8 - d)))))
 end

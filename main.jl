@@ -17,6 +17,8 @@ include("diffusion.jl")
 include("laplacian.jl")
 include("align.jl")
 include("potentialCL.jl")
+include("diffusionCL.jl")
+include("addCL.jl")
 
 ###
 # set up initial configuration
@@ -171,11 +173,13 @@ row5 = zeros(T, fieldResY, fieldResX)
 row6 = zeros(T, fieldResY, fieldResX)
 
 M_pot  = zeros(T, fieldResY, fieldResX)
-M_pot1 = zeros(T, fieldResY, fieldResX)
-M_pot2 = zeros(T, fieldResY, fieldResX)
-
 W_pot = zeros(T, fieldResY, fieldResX)
 A_pot = zeros(T, fieldResY, fieldResX)
+
+W_lap = zeros(T, fieldResY, fieldResX)
+A_lap = zeros(T, fieldResY, fieldResX)
+M_lap = zeros(T, fieldResY, fieldResX)
+F_lap = zeros(T, fieldResY, fieldResX)
 
 ###
 # Simulation
@@ -191,6 +195,8 @@ meanAField = mean(Afield)
 # CL prepare programs.
 
 potentialProgram = cl.Program(ctx, source=getPotentialKernel(T)) |> cl.build!
+diffusionProgram = cl.Program(ctx, source=getDiffusionKernel(T)) |> cl.build!
+addProgram = cl.Program(ctx, source=getAddKernel(T)) |> cl.build!
 
 #create buffers on device
 bufferSize = fieldResX * fieldResY
@@ -199,12 +205,16 @@ buff_mpot1 = cl.Buffer(T, ctx, :rw, bufferSize)
 buff_wpot = cl.Buffer(T, ctx, :rw, bufferSize)
 buff_mpot2 = cl.Buffer(T, ctx, :rw, bufferSize)
 buff_apot = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_mpot = cl.Buffer(T, ctx, :rw, bufferSize)
 
 buff_mfield = cl.Buffer(T, ctx, :rw, bufferSize)
 buff_wfield = cl.Buffer(T, ctx, :rw, bufferSize)
 buff_afield = cl.Buffer(T, ctx, :rw, bufferSize)
 buff_dfield = cl.Buffer(T, ctx, :rw, bufferSize)
 
+buff_wlap = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_alap = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_mlap = cl.Buffer(T, ctx, :rw, bufferSize)
 
 while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAField < 2) && (meanAField > 0.001)
     ###
@@ -234,20 +244,22 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     potentialCL!(buff_mfield, buff_wfield, buff_dfield, buff_mpot1, buff_wpot, MW_repulsion, long_direction, fieldResY, fieldResX, ctx, queue, potentialProgram)
     potentialCL!(buff_mfield, buff_afield, buff_dfield, buff_mpot2, buff_apot, MA_repulsion, long_direction, fieldResY, fieldResX, ctx, queue, potentialProgram)
 
-    cl.copy!(queue, M_pot1, buff_mpot1)
-    cl.copy!(queue, W_pot, buff_wpot)
-    cl.copy!(queue, M_pot2, buff_mpot2)
-    cl.copy!(queue, A_pot, buff_apot)
-
-    M_pot = M_pot1 + M_pot2
+    addCL!(buff_mpot1, buff_mpot2, buff_mpot, fieldResY, fieldResX, ctx, queue, addProgram)
 
     ###
     # move molecules and update directionality
     ###
 
-    M_lap = diffM * diffusion(Mfield, M_pot)
-    W_lap = diffW * diffusion(Wfield, W_pot)
-    A_lap = diffA * diffusion(Afield, A_pot)
+    diffusionCL!(buff_mfield, buff_mpot, buff_mlap, fieldResY, fieldResX, ctx, queue, diffusionProgram)
+    diffusionCL!(buff_wfield, buff_wpot, buff_wlap, fieldResY, fieldResX, ctx, queue, diffusionProgram)
+    diffusionCL!(buff_afield, buff_apot, buff_alap, fieldResY, fieldResX, ctx, queue, diffusionProgram)
+
+    cl.copy!(queue, W_lap, buff_wlap)
+    cl.copy!(queue, A_lap, buff_alap)
+    cl.copy!(queue, M_lap, buff_mlap)
+
+    multiply!(W_lap, diffW)
+    multiply!(A_lap, diffA)
 
     # Laplacian for diffusion
     F_lap = diffF * LaPlacian(Ffield);

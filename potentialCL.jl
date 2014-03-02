@@ -38,8 +38,8 @@ function getPotentialKernel{T <: FloatingPoint}(::Type{T})
 
 
 
-        int j = get_global_id(0);
-        int i = get_global_id(1);
+        int i = get_global_id(0);
+        int j = get_global_id(1);
         int west = j-1;
         int east = j+1;
         int north = i+1;
@@ -103,7 +103,7 @@ function potentialCL!{T <: FloatingPoint}(
     repulsion :: T, long :: T, d1 :: Int64, d2 ::Int64,
     ctx :: Context, queue :: CmdQueue, program :: Program)
 
-    zeroArray = ones(T, d1, d2)
+    zeroArray = zeros(T, d1, d2)
 
     cl.copy!(queue, aout_buff, zeroArray)
     cl.copy!(queue, bout_buff, zeroArray)
@@ -112,6 +112,4 @@ function potentialCL!{T <: FloatingPoint}(
 
     short = one(T)
     cl.call(queue, k, (d1,d2), nothing, a_buff, b_buff, d_buff, aout_buff, bout_buff, int32(d1), int32(d2), repulsion, long, short)
-
-    return (aout_buff, bout_buff)
 end
