@@ -7,6 +7,8 @@ using NumericExtensions
 using ProgressMeter
 using Datetime
 using PyPlot
+import OpenCL
+const cl = OpenCL
 
 include("config.jl")
 include("drawcircle.jl")
@@ -21,16 +23,35 @@ include("potentialCL.jl")
 ###
 
 function main(;enableVis = false, enableDirFieldVis = false, fileName = "", loadTime = 0)
+###
+# Prepare GPU
+###
+device, ctx, queue = cl.create_compute_context()
+const CL64BIT =
+    if "cl_khr_fp64" in cl.info(device, :extensions)
+         true
+    elseif "cl_amd_fp64" in cl.info(device, :extensions)
+        true
+    else
+        warn("No Float64 support.")
+        false
+    end
+
+    simulation(enableVis, enableDirFieldVis, fileName, loadTime, device, ctx, queue, CL64BIT, CL64BIT ? Float64 : Float32)
+
+end
+
+function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, device, ctx, queue, CL64BIT, :: Type{T} )
 # initialize membrane fields
-Afield = zeros(Float64, fieldResY, fieldResX)
-Mfield = zeros(Float64, fieldResY, fieldResX)
-Ffield = avgF * ones(Float64, fieldResY, fieldResX)
-Tfield = zeros(Float64, fieldResY, fieldResX)
-Wfield = ones(Float64, fieldResY, fieldResX)
-directionfield = pi/2 * ones(Float64, fieldResY, fieldResX)
+Afield = zeros(T, fieldResY, fieldResX)
+Mfield = zeros(T, fieldResY, fieldResX)
+Ffield = avgF * ones(T, fieldResY, fieldResX)
+Tfield = zeros(T, fieldResY, fieldResX)
+Wfield = ones(T, fieldResY, fieldResX)
+directionfield = pi/2 * ones(T, fieldResY, fieldResX)
 
 # draw membrane circle
-M_circ = zeros(Float64, fieldResY, fieldResX)
+M_circ = zeros(T, fieldResY, fieldResX)
 
 for r in mR:0.01:(mR+mT-1)
     drawcircle!(M_circ, xc, yc, r)
@@ -38,7 +59,7 @@ end
 Mfield += avgM * M_circ + 0.01* rand(fieldResY, fieldResX)
 
 # fill in with autocatalyst
-A_circ = zeros(Float64, fieldResY, fieldResX)
+A_circ = zeros(T, fieldResY, fieldResX)
 
 for r in 0:0.01:mR
     drawcircle!(A_circ, xc, yc, r)
@@ -89,13 +110,13 @@ directionfield[isnan(directionfield)] = 0
 tStoreFields = 1:stepVisualization:timeTotal
 
 # create 3d matrices to store field activities
-history_A = zeros(Float64, fieldResY, fieldResX, length(tStoreFields))
-history_F = zeros(Float64, fieldResY, fieldResX, length(tStoreFields))
-history_T = zeros(Float64, fieldResY, fieldResX, length(tStoreFields))
-history_M = zeros(Float64, fieldResY, fieldResX, length(tStoreFields))
-history_M_pot = zeros(Float64, fieldResY, fieldResX, length(tStoreFields))
-history_W = zeros(Float64, fieldResY, fieldResX, length(tStoreFields))
-history_dir = zeros(Float64, fieldResY, fieldResX, length(tStoreFields))
+history_A = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+history_F = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+history_T = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+history_M = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+history_M_pot = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+history_W = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+history_dir = zeros(T, fieldResY, fieldResX, length(tStoreFields))
 
 # index of the current position in the history matrices
 iHistory = 1
@@ -103,13 +124,13 @@ iHistory = 1
 #vectors to save global concentrations across time
 
 vecL = iround(timeTotal / stepIntegration)
-Avec = zeros(Float64, vecL)
-Fvec = zeros(Float64, vecL)
-Tvec = zeros(Float64, vecL)
-Mvec = zeros(Float64, vecL)
-Wvec = zeros(Float64, vecL)
-DAvec = zeros(Float64, vecL)
-DMvec = zeros(Float64, vecL)
+Avec = zeros(T, vecL)
+Fvec = zeros(T, vecL)
+Tvec = zeros(T, vecL)
+Mvec = zeros(T, vecL)
+Wvec = zeros(T, vecL)
+DAvec = zeros(T, vecL)
+DMvec = zeros(T, vecL)
 
 ###
 # Prepare simulation
@@ -128,10 +149,10 @@ dM = 0
 tx = [0:stepIntegration:timeTotal-stepIntegration]
 
 
-qX = zeros(Float64, fieldResX*fieldResY, 1)
-qY = zeros(Float64, fieldResX*fieldResY, 1)
-qU = zeros(Float64, fieldResX*fieldResY, 1)
-qV = zeros(Float64, fieldResX*fieldResY, 1)
+qX = zeros(T, fieldResX*fieldResY, 1)
+qY = zeros(T, fieldResX*fieldResY, 1)
+qU = zeros(T, fieldResX*fieldResY, 1)
+qV = zeros(T, fieldResX*fieldResY, 1)
 
 ind=1
 for xx in 1:fieldResX
@@ -142,19 +163,19 @@ for xx in 1:fieldResX
     end
 end
 
-row1 = zeros(Float64, fieldResY, fieldResX)
-row2 = zeros(Float64, fieldResY, fieldResX)
-row3 = zeros(Float64, fieldResY, fieldResX)
-row4 = zeros(Float64, fieldResY, fieldResX)
-row5 = zeros(Float64, fieldResY, fieldResX)
-row6 = zeros(Float64, fieldResY, fieldResX)
+row1 = zeros(T, fieldResY, fieldResX)
+row2 = zeros(T, fieldResY, fieldResX)
+row3 = zeros(T, fieldResY, fieldResX)
+row4 = zeros(T, fieldResY, fieldResX)
+row5 = zeros(T, fieldResY, fieldResX)
+row6 = zeros(T, fieldResY, fieldResX)
 
-M_pot  = zeros(Float64, fieldResY, fieldResX)
-M_pot1 = zeros(Float64, fieldResY, fieldResX)
-M_pot2 = zeros(Float64, fieldResY, fieldResX)
+M_pot  = zeros(T, fieldResY, fieldResX)
+M_pot1 = zeros(T, fieldResY, fieldResX)
+M_pot2 = zeros(T, fieldResY, fieldResX)
 
-W_pot = zeros(Float64, fieldResY, fieldResX)
-A_pot = zeros(Float64, fieldResY, fieldResX)
+W_pot = zeros(T, fieldResY, fieldResX)
+A_pot = zeros(T, fieldResY, fieldResX)
 
 ###
 # Simulation
@@ -165,6 +186,25 @@ p = Progress(length(tx), 1)
 
 meanMField = mean(Mfield)
 meanAField = mean(Afield)
+
+###
+# CL prepare programs.
+
+potentialProgram = cl.Program(ctx, source=getPotentialKernel(T)) |> cl.build!
+
+#create buffers on device
+bufferSize = fieldResX * fieldResY
+
+buff_mpot1 = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_wpot = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_mpot2 = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_apot = cl.Buffer(T, ctx, :rw, bufferSize)
+
+buff_mfield = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_wfield = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_afield = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_dfield = cl.Buffer(T, ctx, :rw, bufferSize)
+
 
 while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAField < 2) && (meanAField > 0.001)
     ###
@@ -183,19 +223,21 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
         directionfield[1:fieldRes, t0:tS] = pi .* rand(fieldRes, length(t0:tS))
     end
 
-
     ###
     # calculate potential based on repulsion %
     ###
-    mfield = convert(Array{Float32}, Mfield)
-    wfield = convert(Array{Float32}, Wfield)
-    afield = convert(Array{Float32}, Wfield)
-    dfield = convert(Array{Float32}, directionfield)
+    cl.copy!(queue, buff_mfield, Mfield)
+    cl.copy!(queue, buff_wfield, Wfield)
+    cl.copy!(queue, buff_afield, Afield)
+    cl.copy!(queue, buff_dfield, directionfield)
 
-    #@time potential(Mfield, Wfield, directionfield, MW_repulsion, long_direction)
-    M_pot1, W_pot = potentialCL(mfield, wfield, dfield, MW_repulsion, long_direction)
-    #M_pot1, W_pot = potential(Mfield, Wfield, directionfield, MW_repulsion, long_direction)
-    M_pot2, A_pot = potentialCL(mfield, afield, dfield, MA_repulsion, long_direction)
+    potentialCL!(buff_mfield, buff_wfield, buff_dfield, buff_mpot1, buff_wpot, MW_repulsion, long_direction, fieldResY, fieldResX, ctx, queue, potentialProgram)
+    potentialCL!(buff_mfield, buff_afield, buff_dfield, buff_mpot2, buff_apot, MA_repulsion, long_direction, fieldResY, fieldResX, ctx, queue, potentialProgram)
+
+    cl.copy!(queue, M_pot1, buff_mpot1)
+    cl.copy!(queue, W_pot, buff_wpot)
+    cl.copy!(queue, M_pot2, buff_mpot2)
+    cl.copy!(queue, A_pot, buff_apot)
 
     M_pot = M_pot1 + M_pot2
 
