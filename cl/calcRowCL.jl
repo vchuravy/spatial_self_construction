@@ -27,15 +27,15 @@ function getRowKernel{T <: FloatingPoint}(::Type{T})
                       __global $nType *out,
                       const int D1,
                       const int D2,
-                      const int m,
-                      const int _a,
-                      const int f,
-                      const int w) {
+                      const $nType m,
+                      const $nType _a,
+                      const $nType f,
+                      const $nType w) {
 
         int i = get_global_id(0);
         int j = get_global_id(1);
 
-        Out(i, j) = pown(M(i, j), m) * pown(A(i, j), _a) * pown(F(i, j), f) * pown(W(i, j), w);
+        Out(i, j) = pow(M(i, j), m) * pow(A(i, j), _a) * pow(F(i, j), f) * pow(W(i, j), w);
     }
 "
 end
@@ -48,5 +48,5 @@ function calcRowCL!{T <: FloatingPoint}(
 
     k = cl.Kernel(program, "calcRow")
 
-    cl.call(queue, k, (d1,d2), nothing, a_buff, b_buff, c_buff, d_buff, out_buff, int32(d1), int32(d2), int32(a), int32(b), int32(c), int32(d))
+    cl.call(queue, k, (d1,d2), nothing, a_buff, b_buff, c_buff, d_buff, out_buff, int32(d1), int32(d2), convert(T, a), convert(T, b), convert(T, c), convert(T, d))
 end
