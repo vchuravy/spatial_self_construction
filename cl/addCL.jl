@@ -12,22 +12,16 @@ function getAddKernel{T <: FloatingPoint}(::Type{T})
         #pragma OPENCL EXTENSION cl_amd_fp64 : enable
         #endif
 
-        #define A(x,y) a[x*D1 + y]
-        #define B(x,y) b[x*D1 + y]
 
-        #define Out(x,y) out[x*D1 + y]
 
         __kernel void add(
                       __global const $nType *a,
                       __global const $nType *b,
-                      __global $nType *out,
-                      const int D1,
-                      const int D2) {
+                      __global $nType *out) {
 
         int i = get_global_id(0);
-        int j = get_global_id(1);
 
-        Out(i,j) = A(i,j) + B(i,j);
+        out[i] = a[i] + b[i];
     }
 "
 end
@@ -40,5 +34,5 @@ function addCL!{T <: FloatingPoint}(
 
     k = cl.Kernel(program, "add")
 
-    cl.call(queue, k, (d1,d2), nothing, a_buff, b_buff, out_buff, int32(d1), int32(d2))
+    cl.call(queue, k, d1 * d2, nothing, a_buff, b_buff, out_buff)
 end
