@@ -168,10 +168,6 @@ for xx in 1:fieldResX
     end
 end
 
-M_pot  = zeros(T, fieldResY, fieldResX)
-W_pot = zeros(T, fieldResY, fieldResX)
-A_pot = zeros(T, fieldResY, fieldResX)
-
 W_lap = zeros(T, fieldResY, fieldResX)
 A_lap = zeros(T, fieldResY, fieldResX)
 M_lap = zeros(T, fieldResY, fieldResX)
@@ -253,14 +249,18 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     end
 
     ###
-    # calculate potential based on repulsion %
+    # Pushing the fields on the GPU
     ###
+
     cl.copy!(queue, buff_mfield, Mfield)
     cl.copy!(queue, buff_wfield, Wfield)
     cl.copy!(queue, buff_afield, Afield)
     cl.copy!(queue, buff_ffield, Ffield)
     cl.copy!(queue, buff_dfield, directionfield)
 
+    ###
+    # calculate potential based on repulsion
+    ###
     potentialCL!(buff_mfield, buff_wfield, buff_dfield, buff_mpot1, buff_wpot, MW_repulsion, long_direction, fieldResY, fieldResX, ctx, queue, potentialProgram)
     potentialCL!(buff_mfield, buff_afield, buff_dfield, buff_mpot2, buff_apot, MA_repulsion, long_direction, fieldResY, fieldResX, ctx, queue, potentialProgram)
 
@@ -274,21 +274,36 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     diffusionCL!(buff_wfield, buff_wpot, buff_wlap, fieldResY, fieldResX, ctx, queue, diffusionProgram)
     diffusionCL!(buff_afield, buff_apot, buff_alap, fieldResY, fieldResX, ctx, queue, diffusionProgram)
 
+
+    ###
+    # Get *_lap from the GPU
+    ###
     cl.copy!(queue, W_lap, buff_wlap)
     cl.copy!(queue, A_lap, buff_alap)
     cl.copy!(queue, M_lap, buff_mlap)
 
-    multiply!(W_lap, diffW)
-    multiply!(A_lap, diffA)
-    multiply!(M_lap, diffM)
+    W_lap = diffW * W_lap
+    A_lap = diffA * A_lap
+    M_lap = diffM * M_lap
 
     # Laplacian for diffusion
+    # Todo calculate in on GPU to be coherent and to minimize data transfers.
     F_lap = diffF * LaPlacian(Ffield)
-    T_lap = diffT * LaPlacian(Tfield)
+
+    ###
+    # Push them again
+    # Todo: add function to do buffer multiplication
+    ###
+
+    cl.copy!(queue, buff_wlap, W_lap)
+    cl.copy!(queue, buff_alap, A_lap)
+    cl.copy!(queue, buff_mlap, M_lap)
+    cl.copy!(queue, buff_flap, F_lap)
 
     # update direction field based on alignment
     alignCL!(buff_mfield, buff_dfield, buff_ndfield, attractionRate, stepIntegration, fieldResY, fieldResX, ctx, queue, alignProgram)
     cl.copy!(queue, directionfield, buff_ndfield)
+
     ###
     # reactions
     ##
@@ -300,13 +315,21 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     calcRowCL!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row5, m31, a31, f31, w31, fieldResY, fieldResX, ctx, queue, rowProgram)
     calcRowCL!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row6, m32, a32, f32, w32, fieldResY, fieldResX, ctx, queue, rowProgram)
 
+    ##
+    # Calculate dA
+    ##
+
     deltaCL!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dA,
             r(a12, a11, kf1), r(a11, a12, kb1), r(a22, a21, kf2), r(a21, a22, kb2), r(a32, a31, kf3), r(a31, a32, kb3),
             fieldResY, fieldResX, ctx, queue, deltaProgram)
 
     cl.copy!(queue, dA, buff_dA)
 
-    dA = add!(subtract!(divide!(dA, (1+Mfield)),decayA*Afield), A_lap)
+    dA = add!(subtract!(divide!(dA, (1+Mfield)), decayA*Afield), A_lap)
+
+    ##
+    # Calculate dM
+    ##
 
     deltaCL!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dM,
             r(m12, m11, kf1), r(m11, m12, kb1), r(m22, m21, kf2), r(m21, m22, kb2), r(m32, m31, kf3), r(m31, m32, kb3),
@@ -316,6 +339,10 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
 
     dM = add!(subtract!(divide!(dM, (1+Afield)),decayM*Mfield), M_lap)
 
+    ##
+    # Calculate dW
+    ##
+
     deltaCL!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dW,
             r(w12, w11, kf1), r(w11, w12, kb1), r(w22, w21, kf2), r(w21, w22, kb2), r(w32, w31, kf3), r(w31, w32, kb3),
             fieldResY, fieldResX, ctx, queue, deltaProgram)
@@ -323,6 +350,10 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     addCL!(buff_wlap, buff_dW, buff_dW, fieldResY, fieldResX, ctx, queue, addProgram)
 
     cl.copy!(queue, dW, buff_dW)
+
+    ##
+    # Calculate dF
+    ##
 
     deltaCL!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dF,
             r(f12, f11, kf1), r(f11, f12, kb1), r(f22, f21, kf2), r(f21, f22, kb2), r(f32, f31, kf3), r(f31, f32, kb3),
@@ -335,7 +366,6 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     dF[FrefillBinMask] += flowRateF * (saturationF - Ffield[FrefillBinMask])
 
     dT = 0
-
 
     # update values
     Afield += dA * stepIntegration
@@ -353,8 +383,8 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     Mvec[iround(t/stepIntegration)] = meanMField
     Wvec[iround(t/stepIntegration)] = mean(Wfield)
     if enableVis
-      DAvec[iround(t/stepIntegration)] = sumsq(dA)
-      DMvec[iround(t/stepIntegration)] = sumsq(dM)
+      DAvec[iround(t/stepIntegration)] = sumabs(dA)
+      DMvec[iround(t/stepIntegration)] = sumabs(dM)
     end
 
     if t in tStoreFields
@@ -362,7 +392,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
       history_F[:, :, iHistory] = Ffield
       history_T[:, :, iHistory] = Tfield
       history_M[:, :, iHistory] = Mfield
-      history_M_pot[:, :, iHistory] = M_pot
+      history_M_pot[:, :, iHistory] = cl.read(queue, buff_mpot)
       history_W[:, :, iHistory] = Wfield
       history_dir[:, :, iHistory] = directionfield
       iHistory += 1
@@ -456,6 +486,6 @@ function r(x, y, k)
   if (k == zero(k)) || (x == y)
     return zero(k)
   else
-    return (k * (x-y))
+    return ((x-y) * k )
   end
 end
