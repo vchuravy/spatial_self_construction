@@ -12,10 +12,10 @@ function getDiffusionKernel{T <: FloatingPoint}(::Type{T})
         #pragma OPENCL EXTENSION cl_amd_fp64 : enable
         #endif
 
-        #define Conc(x,y) a[x*D1 + y]
-        #define Pot(x,y) b[x*D1 + y]
+        #define Conc(x,y) a[y*D2 + x]
+        #define Pot(x,y) b[y*D2 + x]
 
-        #define P_move(x,y) out[x*D1 + y]
+        #define P_move(x,y) out[y*D2 + x]
 
         __kernel void diffusion(
                       __global const $nType *a,

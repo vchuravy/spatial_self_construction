@@ -8,21 +8,23 @@ function getPotentialKernel{T <: FloatingPoint}(::Type{T})
     return "
         #if defined(cl_khr_fp64)  // Khronos extension available?
         #pragma OPENCL EXTENSION cl_khr_fp64 : enable
+        #define PI M_PI
+        #define PI_4 M_PI_4
         #elif defined(cl_amd_fp64)  // AMD extension available?
         #pragma OPENCL EXTENSION cl_amd_fp64 : enable
+        #define PI M_PI
+        #define PI_4 M_PI_4_F
+        #else
+        #define PI M_PI
+        #define PI_4 M_PI_4_F
         #endif
 
-        #define Afield(x,y) a[x*D1 + y]
-        #define Bfield(x,y) b[x*D1 + y]
-        #define Direction(x,y) d[x*D1 + y]
+        #define Afield(x,y) a[y*D2 + x]
+        #define Bfield(x,y) b[y*D2 + x]
+        #define Direction(x,y) d[y*D2 + x]
 
-        #define Apot(x,y) aout[x*D1 + y]
-        #define Bpot(x,y) bout[x*D1 + y]
-
-        $nType area($nType x, $nType d, $nType LONG, $nType SHORT) {
-            const $nType p8 = x * M_PI/8;
-            return LONG * SHORT / 2 * ( p8 - d - atan((SHORT - LONG)*sin(2*(p8 - d)) / (SHORT + LONG + (SHORT - LONG)*cos(2*(p8 - d)))));
-        }
+        #define Apot(x,y) aout[y*D2 + x]
+        #define Bpot(x,y) bout[y*D2 + x]
 
         __kernel void potential(
                       __global const $nType *a,
@@ -35,8 +37,6 @@ function getPotentialKernel{T <: FloatingPoint}(::Type{T})
                       const $nType selfRepulsion,
                       const $nType LONG,
                       const $nType SHORT) {
-
-
 
         int i = get_global_id(0);
         int j = get_global_id(1);
@@ -55,44 +55,43 @@ function getPotentialKernel{T <: FloatingPoint}(::Type{T})
             south = D1 - 1;
 
         const $nType dir = Direction(i,j);
-        const $nType bF = Bfield(i,j);
-        const $nType cRepulsion = selfRepulsion * bF;
+        const $nType cRepulsion = selfRepulsion * Bfield(i,j);
 
         Apot(i,j) += cRepulsion;
 
-        const $nType area1 = area(1.0f, dir, LONG, SHORT);
-        const $nType area2 = area(3.0f, dir, LONG, SHORT);
-        const $nType area3 = area(5.0f, dir, LONG, SHORT);
-        const $nType area4 = area(7.0f, dir, LONG, SHORT);
-        const $nType area5 = area(9.0f, dir, LONG, SHORT);
 
-        const $nType lps = SHORT * LONG * M_PI;
+        const $nType area1 = LONG*SHORT/2 * (   PI/8-dir - atan((SHORT-LONG)*sin(2*(  PI/8-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(  PI/8-dir)))));
+        const $nType area2 = LONG*SHORT/2 * ( 3*PI/8-dir - atan((SHORT-LONG)*sin(2*(3*PI/8-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(3*PI/8-dir)))));
+        const $nType area3 = LONG*SHORT/2 * ( 5*PI/8-dir - atan((SHORT-LONG)*sin(2*(5*PI/8-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(5*PI/8-dir)))));
+        const $nType area4 = LONG*SHORT/2 * ( 7*PI/8-dir - atan((SHORT-LONG)*sin(2*(7*PI/8-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(7*PI/8-dir)))));
+        const $nType area5 = LONG*SHORT/2 * ( 9*PI/8-dir - atan((SHORT-LONG)*sin(2*(9*PI/8-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(9*PI/8-dir)))));
+
+        const $nType lps = SHORT * LONG * PI;
 
         const $nType a1 = (area2-area1)/lps;
         const $nType a2 = (area3-area2)/lps;
         const $nType a3 = (area4-area3)/lps;
         const $nType a4 = (area5-area4)/lps;
 
-        Apot(north,east) += cRepulsion*a1;
-        Apot(north,j   ) += cRepulsion*a2;
-        Apot(north,west) += cRepulsion*a3;
-        Apot(i,west    ) += cRepulsion*a4;
+        Apot(north,east) = fma(cRepulsion, a1, Apot(north,east));
+        Apot(north,j   ) = fma(cRepulsion, a2, Apot(north,j   ));
+        Apot(north,west) = fma(cRepulsion, a3, Apot(north,west));
+        Apot(i,west    ) = fma(cRepulsion, a4, Apot(i,west    ));
 
-        Apot(south,west) += cRepulsion*a1;
-        Apot(south,j   ) += cRepulsion*a2;
-        Apot(south,east) += cRepulsion*a3;
-        Apot(i,east    ) += cRepulsion*a4;
+        Apot(south,west) = fma(cRepulsion, a1, Apot(south,west));
+        Apot(south,j   ) = fma(cRepulsion, a2, Apot(south,j   ));
+        Apot(south,east) = fma(cRepulsion, a3, Apot(south,east));
+        Apot(i,east    ) = fma(cRepulsion, a4, Apot(i    ,east));
 
-        Bpot(i,j) += selfRepulsion * ( Afield(i,j)
-                                            + Afield(north,east)  * a1
-                                            + Afield(north,j   )  * a2
-                                            + Afield(north,west)  * a3
-                                            + Afield(i,west    )  * a4
-                                            + Afield(south,west)  * a1
-                                            + Afield(south,j   )  * a2
-                                            + Afield(south,east)  * a3
-                                            + Afield(i,east    )  * a4
-                                        );
+
+        Bpot(i,j) = selfRepulsion * fma(Afield(north,east), a1,
+                                    fma(Afield(north,j   ), a2,
+                                    fma(Afield(north,west), a3,
+                                    fma(Afield(i,west    ), a4,
+                                    fma(Afield(south,west), a1,
+                                    fma(Afield(south,j   ), a2,
+                                    fma(Afield(south,east), a3,
+                                    fma(Afield(i,east    ), a4, Afield(i,j)))))))));
     }
 "
 end
@@ -103,10 +102,8 @@ function potentialCL!{T <: FloatingPoint}(
     repulsion :: T, long :: T, d1 :: Int64, d2 :: Int64,
     ctx :: Context, queue :: CmdQueue, program :: Program)
 
-    zeroArray = zeros(T, d1, d2)
-
-    cl.copy!(queue, aout_buff, zeroArray)
-    cl.copy!(queue, bout_buff, zeroArray)
+    cl.copy!(queue, aout_buff, zeros(T, d1, d2))
+    #cl.copy!(queue, bout_buff, zeroArray)
 
     k = cl.Kernel(program, "potential")
 

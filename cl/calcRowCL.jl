@@ -12,12 +12,12 @@ function getRowKernel{T <: FloatingPoint}(::Type{T})
         #pragma OPENCL EXTENSION cl_amd_fp64 : enable
         #endif
 
-        #define M(x,y) a[x*D1 + y]
-        #define A(x,y) b[x*D1 + y]
-        #define F(x,y) c[x*D1 + y]
-        #define W(x,y) d[x*D1 + y]
+        #define M(x,y) a[y*D2 + x]
+        #define A(x,y) b[y*D2 + x]
+        #define F(x,y) c[y*D2 + x]
+        #define W(x,y) d[y*D2 + x]
 
-        #define Out(x,y) out[x*D1 + y]
+        #define Out(x,y) out[y*D2 + x]
 
         __kernel void calcRow(
                       __global const $nType *a,

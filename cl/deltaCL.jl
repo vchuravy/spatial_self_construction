@@ -12,14 +12,14 @@ function getDeltaKernel{T <: FloatingPoint}(::Type{T})
         #pragma OPENCL EXTENSION cl_amd_fp64 : enable
         #endif
 
-        #define R1(x,y) row1[x*D1 + y]
-        #define R2(x,y) row2[x*D1 + y]
-        #define R3(x,y) row3[x*D1 + y]
-        #define R4(x,y) row4[x*D1 + y]
-        #define R5(x,y) row5[x*D1 + y]
-        #define R6(x,y) row6[x*D1 + y]
+        #define R1(x,y) row1[y*D2 + x]
+        #define R2(x,y) row2[y*D2 + x]
+        #define R3(x,y) row3[y*D2 + x]
+        #define R4(x,y) row4[y*D2 + x]
+        #define R5(x,y) row5[y*D2 + x]
+        #define R6(x,y) row6[y*D2 + x]
 
-        #define Out(x,y) out[x*D1 + y]
+        #define Out(x,y) out[y*D2 + x]
 
         __kernel void delta(
                       __global const $nType *row1,

@@ -12,10 +12,10 @@ function getAlignKernel{T <: FloatingPoint}(::Type{T})
         #pragma OPENCL EXTENSION cl_amd_fp64 : enable
         #endif
 
-        #define Conc(x,y) a[x*D1 + y]
-        #define Dir(x,y) b[x*D1 + y]
+        #define Conc(x,y) a[y*D2 + x]
+        #define Dir(x,y)  b[y*D2 + x]
 
-        #define Newdir(x,y) out[x*D1 + y]
+        #define Newdir(x,y) out[y*D2 + x]
 
         __kernel void align(
                       __global const $nType *a,

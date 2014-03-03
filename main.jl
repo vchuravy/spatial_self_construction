@@ -12,8 +12,8 @@ const cl = OpenCL
 
 include("config.jl")
 include("drawcircle.jl")
-#include("potential.jl")
-#include("diffusion.jl")
+include("potential.jl")
+include("diffusion.jl")
 include("laplacian.jl")
 #include("align.jl")
 include("cl/potentialCL.jl")
@@ -42,11 +42,11 @@ const CL64BIT =
         false
     end
 
-    simulation(enableVis, enableDirFieldVis, fileName, loadTime, device, ctx, queue, CL64BIT, CL64BIT ? Float64 : Float32)
+    simulation(enableVis, enableDirFieldVis, fileName, loadTime, device, ctx, queue, CL64BIT, CL64BIT ? Float64 : Float32, true)
 
 end
 
-function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, device, ctx, queue, CL64BIT, :: Type{T} )
+function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, device, ctx, queue, CL64BIT, :: Type{T}, testCL :: Bool )
 # initialize membrane fields
 Afield = zeros(T, fieldResY, fieldResX)
 Mfield = zeros(T, fieldResY, fieldResX)
@@ -266,6 +266,82 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
 
     addCL!(buff_mpot1, buff_mpot2, buff_mpot, fieldResY, fieldResX, ctx, queue, addProgram)
 
+    if testCL
+    ##
+    # Test buff_wpot and buff_mpot1 to have the same result as previously
+    ##
+
+    M_pot1, W_pot = potential(Mfield, Wfield, directionfield, MW_repulsion, long_direction)
+    M_pot2, A_pot = potential(Mfield, Afield, directionfield, MW_repulsion, long_direction)
+    M_pot = M_pot1 + M_pot2
+    #Obtain buffer
+    M_Pot1CL = zeros(T, fieldResY, fieldResX)
+    W_PotCL = zeros(T, fieldResY, fieldResX)
+    M_Pot2CL = zeros(T, fieldResY, fieldResX)
+    A_PotCL = zeros(T, fieldResY, fieldResX)
+    M_PotCL = zeros(T, fieldResY, fieldResX)
+    cl.copy!(queue, M_Pot1CL, buff_mpot1)
+    cl.copy!(queue, W_PotCL, buff_wpot)
+    cl.copy!(queue, M_Pot2CL, buff_mpot2)
+    cl.copy!(queue, A_PotCL, buff_apot)
+    cl.copy!(queue, M_PotCL, buff_mpot)
+
+    #Calculate sumabs
+    println("M_pot1 - M_pot1CL sumabs = $(sumabs(M_pot1 - M_Pot1CL))")
+    println("W_pot - W_potCL sumabs = $(sumabs(W_pot - W_PotCL))")
+    println("M_pot2 - M_pot2CL sumabs = $(sumabs(M_pot2 - M_Pot2CL))")
+    println("A_pot - A_potCL sumabs = $(sumabs(A_pot - A_PotCL))")
+    println("M_pot - M_potCL sumabs = $(sumabs(M_pot - M_PotCL))")
+
+    isaM1 = map(isapprox, M_pot1, M_Pot1CL)
+    isaW = map(isapprox, W_pot, W_PotCL)
+    isaM2 = map(isapprox, M_pot2, M_Pot2CL)
+    isaA = map(isapprox, A_pot, A_PotCL)
+    isaM = map(isapprox, M_pot, M_PotCL)
+
+    if all(isaM1)
+        println("M_pot1 and M_pot1CL are numerical equal")
+    else
+        c = count(x -> !x, isaM1)
+        warn("M_pot1 and M_potCL1 diverge on $c points")
+        warn("The mean divergence is $(sumabs(M_pot1[!isaM1] - M_Pot1CL[!isaM1])/c)")
+    end
+
+    if all(isaW)
+        println("W_pot and W_potCL are numerical equal")
+    else
+        c = count(x -> !x, isaW)
+        warn("W_pot and W_potCL diverge on $c points")
+        warn("The mean divergence is $(sumabs(W_pot[!isaW] - W_PotCL[!isaW])/c)")
+    end
+
+    if all(isaM2)
+        println("M_pot2 and M_pot2CL are numerical equal")
+    else
+        c = count(x -> !x, isaM2)
+        warn("M_pot2 and M_potCL2 diverge on $c points")
+        warn("The mean divergence is $(sumabs(M_pot2[!isaM2] - M_Pot2CL[!isaM2])/c)")
+    end
+
+    if all(isaA)
+        println("A_pot and A_potCL are numerical equal")
+    else
+        c = count(x -> !x, isaA)
+        warn("A_pot and A_potCL diverge on $c points")
+        warn("The mean divergence is $(sumabs(A_pot[!isaA] - A_PotCL[!isaA])/c)")
+    end
+
+    if all(isaM)
+        println("M_pot and M_potCL are numerical equal")
+    else
+        c = count(x -> !x, isaM)
+        warn("M_pot and M_potCL diverge on $c points")
+        warn("The mean divergence is $(sumabs(M_pot[!isaM] - M_PotCL[!isaM])/c)")
+    end
+
+    println()
+    end # if testCL
+
     ###
     # move molecules and update directionality
     ###
@@ -274,6 +350,69 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     diffusionCL!(buff_wfield, buff_wpot, buff_wlap, fieldResY, fieldResX, ctx, queue, diffusionProgram)
     diffusionCL!(buff_afield, buff_apot, buff_alap, fieldResY, fieldResX, ctx, queue, diffusionProgram)
 
+    ###
+    # Test diffusion CL
+    ###
+
+    if testCL
+    # Get buffer from last step
+    M_PotCL = zeros(T, fieldResY, fieldResX)
+    W_PotCL = zeros(T, fieldResY, fieldResX)
+    A_PotCL = zeros(T, fieldResY, fieldResX)
+    cl.copy!(queue, M_PotCL, buff_mpot)
+    cl.copy!(queue, W_PotCL, buff_wpot)
+    cl.copy!(queue, A_PotCL, buff_apot)
+
+    # Calculate
+    t_M_lap  = diffusion(Mfield, M_PotCL)
+    t_W_lap  = diffusion(Wfield, W_PotCL)
+    t_A_lap  = diffusion(Afield, A_PotCL)
+
+    #Obtain buffer
+    M_lapCL = zeros(T, fieldResY, fieldResX)
+    W_lapCL = zeros(T, fieldResY, fieldResX)
+    A_lapCL = zeros(T, fieldResY, fieldResX)
+
+    cl.copy!(queue, M_lapCL, buff_mlap)
+    cl.copy!(queue, W_lapCL, buff_wlap)
+    cl.copy!(queue, A_lapCL, buff_wpot)
+
+    #Calculate sumabs
+    println("W_lap  - W_lapCL sumabs = $(sumabs(t_W_lap - W_lapCL))")
+    println("A_lap  - A_lapCL sumabs = $(sumabs(t_A_lap - A_lapCL))")
+    println("M_lap  - M_lapCL sumabs = $(sumabs(t_M_lap - M_lapCL))")
+
+    isaW = map(isapprox, t_W_lap, W_lapCL)
+    isaA = map(isapprox, t_A_lap, A_lapCL)
+    isaM = map(isapprox, t_M_lap, M_lapCL)
+
+
+    if all(isaW)
+        println("W_lap and W_lapCL are numerical equal")
+    else
+        c = count(x -> !x, isaW)
+        warn("W_lap and W_lapCL diverge on $c points")
+        warn("The mean divergence is $(sumabs(t_W_lap[!isaW] - W_lapCL[!isaW])/c)")
+    end
+
+    if all(isaA)
+        println("A_lap and A_lapCL are numerical equal")
+    else
+        c = count(x -> !x, isaA)
+        warn("A_lap and A_lapCL diverge on $c points")
+        warn("The mean divergence is $(sumabs(t_A_lap[!isaA] - A_lapCL[!isaA])/c)")
+    end
+
+    if all(isaM)
+        println("M_lap and M_lapCL are numerical equal")
+    else
+        c = count(x -> !x, isaM)
+        warn("M_lap and M_lapCL diverge on $c points")
+        warn("The mean divergence is $(sumabs(t_M_lap[!isaM] - M_lapCL[!isaM])/c)")
+    end
+
+    println()
+    end # if testCL
 
     ###
     # Get *_lap from the GPU
@@ -320,7 +459,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     ##
 
     deltaCL!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dA,
-            r(a12, a11, kf1), r(a11, a12, kb1), r(a22, a21, kf2), r(a21, a22, kb2), r(a32, a31, kf3), r(a31, a32, kb3),
+            fsm(a12, a11, kf1), fsm(a11, a12, kb1), fsm(a22, a21, kf2), fsm(a21, a22, kb2), fsm(a32, a31, kf3), fsm(a31, a32, kb3),
             fieldResY, fieldResX, ctx, queue, deltaProgram)
 
     cl.copy!(queue, dA, buff_dA)
@@ -332,7 +471,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     ##
 
     deltaCL!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dM,
-            r(m12, m11, kf1), r(m11, m12, kb1), r(m22, m21, kf2), r(m21, m22, kb2), r(m32, m31, kf3), r(m31, m32, kb3),
+            fsm(m12, m11, kf1), fsm(m11, m12, kb1), fsm(m22, m21, kf2), fsm(m21, m22, kb2), fsm(m32, m31, kf3), fsm(m31, m32, kb3),
             fieldResY, fieldResX, ctx, queue, deltaProgram)
 
     cl.copy!(queue, dM, buff_dM)
@@ -344,7 +483,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     ##
 
     deltaCL!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dW,
-            r(w12, w11, kf1), r(w11, w12, kb1), r(w22, w21, kf2), r(w21, w22, kb2), r(w32, w31, kf3), r(w31, w32, kb3),
+            fsm(w12, w11, kf1), fsm(w11, w12, kb1), fsm(w22, w21, kf2), fsm(w21, w22, kb2), fsm(w32, w31, kf3), fsm(w31, w32, kb3),
             fieldResY, fieldResX, ctx, queue, deltaProgram)
 
     addCL!(buff_wlap, buff_dW, buff_dW, fieldResY, fieldResX, ctx, queue, addProgram)
@@ -356,7 +495,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     ##
 
     deltaCL!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dF,
-            r(f12, f11, kf1), r(f11, f12, kb1), r(f22, f21, kf2), r(f21, f22, kb2), r(f32, f31, kf3), r(f31, f32, kb3),
+            fsm(f12, f11, kf1), fsm(f11, f12, kb1), fsm(f22, f21, kf2), fsm(f21, f22, kb2), fsm(f32, f31, kf3), fsm(f31, f32, kb3),
             fieldResY, fieldResX, ctx, queue, deltaProgram)
 
     addCL!(buff_flap, buff_dF, buff_dF, fieldResY, fieldResX, ctx, queue, addProgram)
@@ -449,7 +588,7 @@ end # While
 # Find the reason we terminated
 ###
 
-print("Finished because: ")
+print("Finished because after $t: ")
 if t > timeTotal
   println("Time done")
 elseif meanMField >= 2
@@ -460,6 +599,8 @@ elseif meanAField >= 2
   println("mean of AField exceeds 2")
 elseif meanAField <= 0.001
   println("mean of AField is smaller than 0.001")
+else
+  println("$(t <= timeTotal) && $(meanMField < 2) && $(meanMField > 0.001) && $(meanAField < 2) && $(meanAField > 0.001)")
 end
 
 ###
@@ -482,7 +623,7 @@ matwrite("results/$(now()).mat", {
     "DMvec" => DMvec})
 end #Function
 
-function r(x, y, k)
+function fsm(x, y, k)
   if (k == zero(k)) || (x == y)
     return zero(k)
   else
