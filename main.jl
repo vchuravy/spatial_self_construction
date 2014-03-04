@@ -191,7 +191,7 @@ meanAField = mean(Afield)
 ###
 # CL prepare programs.
 
-potentialProgram = cl.Program(ctx, source=getPotentialKernel(T)) |> cl.build!
+potentialProgram = cl.Program(ctx, source=potentialKernel) |> cl.build!
 diffusionProgram = cl.Program(ctx, source=getDiffusionKernel(T)) |> cl.build!
 addProgram = cl.Program(ctx, source=getAddKernel(T)) |> cl.build!
 alignProgram = cl.Program(ctx, source=getAlignKernel(T)) |> cl.build!
