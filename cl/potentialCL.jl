@@ -94,8 +94,8 @@ const potentialKernel = "
             const number a_nw = Area(north, west).s2;
             const number a_iw = Area(i    , west).s3;
             const number a_sw = Area(south, west).s0;
-            const number a_sj = Area(south, east).s1;
-            const number a_se = Area(south, j   ).s2;
+            const number a_sj = Area(south, j   ).s1;
+            const number a_se = Area(south, east).s2;
             const number a_ie = Area(i    , east).s3;
 
             const number r_ne = repulsion * Afield(north, east);
@@ -103,8 +103,8 @@ const potentialKernel = "
             const number r_nw = repulsion * Afield(north, west);
             const number r_iw = repulsion * Afield(i    , west);
             const number r_sw = repulsion * Afield(south, west);
-            const number r_sj = repulsion * Afield(south, east);
-            const number r_se = repulsion * Afield(south, j   );
+            const number r_sj = repulsion * Afield(south, j   );
+            const number r_se = repulsion * Afield(south, east);
             const number r_ie = repulsion * Afield(i    , east);
 
             Bpot(i,j) =    fma(r_ne, a_ne,
