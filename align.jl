@@ -41,19 +41,19 @@ function align(conc, dir, attraction, step) #concentration and direction
             potential = map!(SinFun(), potential, potential)
             potential = negate!(potential)
 
-            concentration = conc[i,j]
+            #concentration = conc[i,j]
 
-            dtheta = zero(concentration)
+            dtheta = zero(Float64)
 
-            dtheta += concentration * conc[north,west] * potential[3, 1]
-            dtheta += concentration * conc[north,j]    * potential[3, 2]
-            dtheta += concentration * conc[north,east] * potential[3, 3]
-            dtheta += concentration * conc[i,west]     * potential[2, 1]
+            dtheta += conc[north,west] * potential[3, 1]
+            dtheta += conc[north,j]    * potential[3, 2]
+            dtheta += conc[north,east] * potential[3, 3]
+            dtheta += conc[i,west]     * potential[2, 1]
 
-            dtheta += concentration * conc[i,east]     * potential[2, 3]
-            dtheta += concentration * conc[south,west] * potential[1, 1]
-            dtheta += concentration * conc[south,j]    * potential[1, 2]
-            dtheta += concentration * conc[south,east] * potential[1, 3]
+            dtheta += conc[i,east]     * potential[2, 3]
+            dtheta += conc[south,west] * potential[1, 1]
+            dtheta += conc[south,j]    * potential[1, 2]
+            dtheta += conc[south,east] * potential[1, 3]
 
 
             # update direction for cell
