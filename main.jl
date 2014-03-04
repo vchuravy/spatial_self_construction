@@ -22,6 +22,8 @@ include("cl/addCL.jl")
 include("cl/alignCL.jl")
 include("cl/calcRowCL.jl")
 include("cl/deltaCL.jl")
+include("cl/smulCL.jl")
+include("cl/deltaStep2CL.jl")
 
 ###
 # set up initial configuration
@@ -192,11 +194,13 @@ meanAField = mean(Afield)
 # CL prepare programs.
 
 potentialProgram = cl.Program(ctx, source=potentialKernel) |> cl.build!
-diffusionProgram = cl.Program(ctx, source=getDiffusionKernel(T)) |> cl.build!
+diffusionProgram = cl.Program(ctx, source=diffusionKernel) |> cl.build!
 addProgram = cl.Program(ctx, source=getAddKernel(T)) |> cl.build!
 alignProgram = cl.Program(ctx, source=getAlignKernel(T)) |> cl.build!
 rowProgram = cl.Program(ctx, source=getRowKernel(T)) |> cl.build!
 deltaProgram = cl.Program(ctx, source=getDeltaKernel(T)) |> cl.build!
+smulProgram = cl.Program(ctx, source=getSMulKernel(T)) |> cl.build!
+delta2Program = cl.Program(ctx, source=delta2Kernel) |> cl.build!
 
 #create buffers on device
 bufferSize = fieldResX * fieldResY
@@ -415,15 +419,11 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     end # if testCL
 
     ###
-    # Get *_lap from the GPU
+    # Get multiply with *_lap with diff*
     ###
-    cl.copy!(queue, W_lap, buff_wlap)
-    cl.copy!(queue, A_lap, buff_alap)
-    cl.copy!(queue, M_lap, buff_mlap)
-
-    W_lap = diffW * W_lap
-    A_lap = diffA * A_lap
-    M_lap = diffM * M_lap
+    smulCL!(diffW, buff_wlap, buff_wlap, fieldResY, fieldResX, ctx, queue, smulProgram)
+    smulCL!(diffA, buff_alap, buff_alap, fieldResY, fieldResX, ctx, queue, smulProgram)
+    smulCL!(diffM, buff_mlap, buff_mlap, fieldResY, fieldResX, ctx, queue, smulProgram)
 
     # Laplacian for diffusion
     # Todo calculate in on GPU to be coherent and to minimize data transfers.
@@ -434,9 +434,6 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     # Todo: add function to do buffer multiplication
     ###
 
-    cl.copy!(queue, buff_wlap, W_lap)
-    cl.copy!(queue, buff_alap, A_lap)
-    cl.copy!(queue, buff_mlap, M_lap)
     cl.copy!(queue, buff_flap, F_lap)
 
     # update direction field based on alignment
@@ -461,10 +458,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     deltaCL!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dA,
             fsm(a12, a11, kf1), fsm(a11, a12, kb1), fsm(a22, a21, kf2), fsm(a21, a22, kb2), fsm(a32, a31, kf3), fsm(a31, a32, kb3),
             fieldResY, fieldResX, ctx, queue, deltaProgram)
-
-    cl.copy!(queue, dA, buff_dA)
-
-    dA = add!(subtract!(divide!(dA, (1+Mfield)), decayA*Afield), A_lap)
+    delta2CL!(buff_dA, buff_mfield, buff_afield, buff_alap, buff_dA, decayA, fieldResY, fieldResX, ctx, queue, delta2Program)
 
     ##
     # Calculate dM
@@ -473,10 +467,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     deltaCL!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dM,
             fsm(m12, m11, kf1), fsm(m11, m12, kb1), fsm(m22, m21, kf2), fsm(m21, m22, kb2), fsm(m32, m31, kf3), fsm(m31, m32, kb3),
             fieldResY, fieldResX, ctx, queue, deltaProgram)
-
-    cl.copy!(queue, dM, buff_dM)
-
-    dM = add!(subtract!(divide!(dM, (1+Afield)),decayM*Mfield), M_lap)
+    delta2CL!(buff_dM, buff_afield, buff_mfield, buff_mlap, buff_dM, decayM, fieldResY, fieldResX, ctx, queue, delta2Program)
 
     ##
     # Calculate dW
@@ -487,8 +478,6 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
             fieldResY, fieldResX, ctx, queue, deltaProgram)
 
     addCL!(buff_wlap, buff_dW, buff_dW, fieldResY, fieldResX, ctx, queue, addProgram)
-
-    cl.copy!(queue, dW, buff_dW)
 
     ##
     # Calculate dF
@@ -507,11 +496,20 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     dT = 0
 
     # update values
-    Afield += dA * stepIntegration
+    smulCL!(stepIntegration, buff_dA, buff_dA, fieldResY, fieldResX, ctx, queue, smulProgram)
+    addCL!(buff_afield, buff_dA, buff_afield, fieldResY, fieldResX, ctx, queue, addProgram)
+    cl.copy!(queue, Afield, buff_afield)
+
     Ffield += dF * stepIntegration
-    Tfield += dT * stepIntegration
-    Mfield += dM * stepIntegration
-    Wfield += dW * stepIntegration
+    #Tfield += dT * stepIntegration
+
+    smulCL!(stepIntegration, buff_dM, buff_dM, fieldResY, fieldResX, ctx, queue, smulProgram)
+    addCL!(buff_mfield, buff_dM, buff_mfield, fieldResY, fieldResX, ctx, queue, addProgram)
+    cl.copy!(queue, Mfield, buff_mfield)
+
+    smulCL!(stepIntegration, buff_dW, buff_dW, fieldResY, fieldResX, ctx, queue, smulProgram)
+    addCL!(buff_wfield, buff_dW, buff_wfield, fieldResY, fieldResX, ctx, queue, addProgram)
+    cl.copy!(queue, Wfield, buff_wfield)
 
     #save values for visualization
     meanAField = mean(Afield)
@@ -522,8 +520,8 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     Mvec[iround(t/stepIntegration)] = meanMField
     Wvec[iround(t/stepIntegration)] = mean(Wfield)
     if enableVis
-      DAvec[iround(t/stepIntegration)] = sumabs(dA)
-      DMvec[iround(t/stepIntegration)] = sumabs(dM)
+      DAvec[iround(t/stepIntegration)] = sumabs(cl.read(queue, buff_dA))
+      DMvec[iround(t/stepIntegration)] = sumabs(cl.read(queue, buff_dM))
     end
 
     if t in tStoreFields

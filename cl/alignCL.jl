@@ -65,17 +65,16 @@ function getAlignKernel{T <: FloatingPoint}(::Type{T})
 
 
         $nType dtheta = 0;
-        $nType concentration = Conc(i,j);
 
-        dtheta += concentration * Conc(north,west) * potential[2][0];
-        dtheta += concentration * Conc(north,j   ) * potential[2][1];
-        dtheta += concentration * Conc(north,east) * potential[2][2];
-        dtheta += concentration * Conc(i,west    ) * potential[1][0];
+        dtheta += Conc(north,west) * potential[2][0];
+        dtheta += Conc(north,j   ) * potential[2][1];
+        dtheta += Conc(north,east) * potential[2][2];
+        dtheta += Conc(i,west    ) * potential[1][0];
 
-        dtheta += concentration * Conc(i,east    ) * potential[1][2];
-        dtheta += concentration * Conc(south,west) * potential[0][0];
-        dtheta += concentration * Conc(south,j   ) * potential[0][1];
-        dtheta += concentration * Conc(south,east) * potential[0][2];
+        dtheta += Conc(i,east    ) * potential[1][2];
+        dtheta += Conc(south,west) * potential[0][0];
+        dtheta += Conc(south,j   ) * potential[0][1];
+        dtheta += Conc(south,east) * potential[0][2];
 
         dtheta = attraction * dtheta / 8;
         $nType ndir = direction + dtheta * step;
