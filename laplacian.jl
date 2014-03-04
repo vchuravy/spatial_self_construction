@@ -20,24 +20,14 @@ function LaPlacian(Ap :: Matrix)
             #8-neighbor
             #inflow
 
-            a = Ap[i,j]
-
-            A_lap[i,j] -= a
-
-            #outflow
-
-            a8 = a / 8
-
-            A_lap[north, east] += a8
-            A_lap[north, j   ] += a8
-            A_lap[north, west] += a8
-            A_lap[i    , west] += a8
-
-            A_lap[south, west] += a8
-            A_lap[south, j   ] += a8
-            A_lap[south, east] += a8
-            A_lap[i    , east] += a8
-
+            A_lap[i,j] = -Ap[i,j] + Ap[north, east] / 8 +
+                                    Ap[north, j   ] / 8 +
+                                    Ap[north, west] / 8 +
+                                    Ap[i    , west] / 8 +
+                                    Ap[south, west] / 8 +
+                                    Ap[south, j   ] / 8 +
+                                    Ap[south, east] / 8 +
+                                    Ap[i    , east] / 8 ;
         end
     end
     return A_lap
