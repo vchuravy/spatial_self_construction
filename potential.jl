@@ -69,9 +69,10 @@ function potential(Afield :: Matrix, Bfield :: Matrix, direction :: Matrix, repu
             a_nj = Area[north, j   ].s1;
             a_nw = Area[north, west].s2;
             a_iw = Area[i    , west].s3;
+
             a_sw = Area[south, west].s0;
-            a_sj = Area[south, east].s1;
-            a_se = Area[south, j   ].s2;
+            a_sj = Area[south, j   ].s1;
+            a_se = Area[south, east].s2;
             a_ie = Area[i    , east].s3;
 
             r_ne = repulsion * Afield[north, east];
@@ -79,8 +80,8 @@ function potential(Afield :: Matrix, Bfield :: Matrix, direction :: Matrix, repu
             r_nw = repulsion * Afield[north, west];
             r_iw = repulsion * Afield[i    , west];
             r_sw = repulsion * Afield[south, west];
-            r_sj = repulsion * Afield[south, east];
-            r_se = repulsion * Afield[south, j   ];
+            r_se = repulsion * Afield[south, east];
+            r_sj = repulsion * Afield[south, j   ];
             r_ie = repulsion * Afield[i    , east];
 
             Bpot[i,j] =    fma(r_ne, a_ne,
