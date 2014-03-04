@@ -39,11 +39,11 @@ const potentialKernel = "
 
             const number dir = d[i];
 
-            const number area1 = LONG*SHORT/2 * (   PI/8-dir - atan((SHORT-LONG)*sin(2*(  PI/8-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(  PI/8-dir)))));
-            const number area2 = LONG*SHORT/2 * ( 3*PI/8-dir - atan((SHORT-LONG)*sin(2*(3*PI/8-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(3*PI/8-dir)))));
-            const number area3 = LONG*SHORT/2 * ( 5*PI/8-dir - atan((SHORT-LONG)*sin(2*(5*PI/8-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(5*PI/8-dir)))));
-            const number area4 = LONG*SHORT/2 * ( 7*PI/8-dir - atan((SHORT-LONG)*sin(2*(7*PI/8-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(7*PI/8-dir)))));
-            const number area5 = LONG*SHORT/2 * ( 9*PI/8-dir - atan((SHORT-LONG)*sin(2*(9*PI/8-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(9*PI/8-dir)))));
+            const number area1 = LONG*SHORT/2 * (   PI_4/2-dir - atan((SHORT-LONG)*sin(2*(  PI_4/2-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(  PI_4/2-dir)))));
+            const number area2 = LONG*SHORT/2 * ( 3*PI_4/2-dir - atan((SHORT-LONG)*sin(2*(3*PI_4/2-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(3*PI_4/2-dir)))));
+            const number area3 = LONG*SHORT/2 * ( 5*PI_4/2-dir - atan((SHORT-LONG)*sin(2*(5*PI_4/2-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(5*PI_4/2-dir)))));
+            const number area4 = LONG*SHORT/2 * ( 7*PI_4/2-dir - atan((SHORT-LONG)*sin(2*(7*PI_4/2-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(7*PI_4/2-dir)))));
+            const number area5 = LONG*SHORT/2 * ( 9*PI_4/2-dir - atan((SHORT-LONG)*sin(2*(9*PI_4/2-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(9*PI_4/2-dir)))));
 
             const number lps = SHORT * LONG * PI;
 
@@ -86,7 +86,8 @@ const potentialKernel = "
 
             const number4 a_ij = Area(i, j);
 
-            const number r_ij = repulsion * Bfield(i,j);
+            const number selfRepulsion = 1*repulsion; // making this lower than repulsion allows for neighbors to have relative potential, so increases the chance that the hydrophobe will flow.
+            const number r_ij = selfRepulsion * Afield(i,j);
 
             const number a_ne = Area(north, east).s0;
             const number a_nj = Area(north, j   ).s1;
@@ -97,16 +98,16 @@ const potentialKernel = "
             const number a_se = Area(south, j   ).s2;
             const number a_ie = Area(i    , east).s3;
 
-            const number r_ne = repulsion * Bfield(north, east);
-            const number r_nj = repulsion * Bfield(north, j   );
-            const number r_nw = repulsion * Bfield(north, west);
-            const number r_iw = repulsion * Bfield(i    , west);
-            const number r_sw = repulsion * Bfield(south, west);
-            const number r_sj = repulsion * Bfield(south, east);
-            const number r_se = repulsion * Bfield(south, j   );
-            const number r_ie = repulsion * Bfield(i    , east);
+            const number r_ne = repulsion * Afield(north, east);
+            const number r_nj = repulsion * Afield(north, j   );
+            const number r_nw = repulsion * Afield(north, west);
+            const number r_iw = repulsion * Afield(i    , west);
+            const number r_sw = repulsion * Afield(south, west);
+            const number r_sj = repulsion * Afield(south, east);
+            const number r_se = repulsion * Afield(south, j   );
+            const number r_ie = repulsion * Afield(i    , east);
 
-            Apot(i,j) =    fma(r_ne, a_ne,
+            Bpot(i,j) =    fma(r_ne, a_ne,
                            fma(r_nj, a_nj,
                            fma(r_nw, a_nw,
                            fma(r_iw, a_iw,
@@ -115,14 +116,14 @@ const potentialKernel = "
                            fma(r_se, a_se,
                            fma(r_ie, a_ie, r_ij))))))));
 
-            Bpot(i,j) = repulsion *     fma(Afield(north,east), a_ij.s0,
-                                        fma(Afield(north,j   ), a_ij.s1,
-                                        fma(Afield(north,west), a_ij.s2,
-                                        fma(Afield(i,west    ), a_ij.s3,
-                                        fma(Afield(south,west), a_ij.s0,
-                                        fma(Afield(south,j   ), a_ij.s1,
-                                        fma(Afield(south,east), a_ij.s2,
-                                        fma(Afield(i,east    ), a_ij.s3, Afield(i,j)))))))));
+            Apot(i,j) = repulsion *     fma(Bfield(north,east), a_ij.s0,
+                                        fma(Bfield(north,j   ), a_ij.s1,
+                                        fma(Bfield(north,west), a_ij.s2,
+                                        fma(Bfield(i,west    ), a_ij.s3,
+                                        fma(Bfield(south,west), a_ij.s0,
+                                        fma(Bfield(south,j   ), a_ij.s1,
+                                        fma(Bfield(south,east), a_ij.s2,
+                                        fma(Bfield(i,east    ), a_ij.s3, Bfield(i,j)))))))));
     }
 "
 
