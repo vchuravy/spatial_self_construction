@@ -27,7 +27,7 @@ include("cl/deltaCL.jl")
 # set up initial configuration
 ###
 
-function main(;enableVis = false, enableDirFieldVis = false, fileName = "", loadTime = 0)
+function main(;enableVis = false, enableDirFieldVis = false, fileName = "", loadTime = 0, debug = false)
 ###
 # Prepare GPU
 ###
@@ -42,7 +42,7 @@ const CL64BIT =
         false
     end
 
-    simulation(enableVis, enableDirFieldVis, fileName, loadTime, device, ctx, queue, CL64BIT, CL64BIT ? Float64 : Float32, true)
+    simulation(enableVis, enableDirFieldVis, fileName, loadTime, device, ctx, queue, CL64BIT, CL64BIT ? Float64 : Float32, debug)
 
 end
 
@@ -621,6 +621,9 @@ matwrite("results/$(now()).mat", {
     "Wvec" => Wvec,
     "DAvec" => DAvec,
     "DMvec" => DMvec})
+
+println("Press any key to exit program.")
+readline(STDIN)
 end #Function
 
 function fsm(x, y, k)
