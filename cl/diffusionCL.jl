@@ -62,7 +62,7 @@ const diffusionKernel =  "
 
             //Check for NaN
             const number8 ones = (number8)(1.0);
-            ge = select(ones, ge, isnan(ge));
+            ge = select(ge, ones, isnan(ge));
             Flow(i,j) = ge / 8.0;
 
         }

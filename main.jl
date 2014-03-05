@@ -379,7 +379,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
 
     cl.copy!(queue, M_lapCL, buff_mlap)
     cl.copy!(queue, W_lapCL, buff_wlap)
-    cl.copy!(queue, A_lapCL, buff_wpot)
+    cl.copy!(queue, A_lapCL, buff_alap)
 
     #Calculate sumabs
     println("W_lap  - W_lapCL sumabs = $(sumabs(t_W_lap - W_lapCL))")
