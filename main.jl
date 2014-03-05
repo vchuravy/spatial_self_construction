@@ -3,7 +3,6 @@
 ###
 
 using MAT
-using NumericExtensions
 using ProgressMeter
 using Datetime
 using PyPlot
@@ -202,6 +201,17 @@ deltaProgram = cl.Program(ctx, source=getDeltaKernel(T)) |> cl.build!
 smulProgram = cl.Program(ctx, source=getSMulKernel(T)) |> cl.build!
 delta2Program = cl.Program(ctx, source=delta2Kernel) |> cl.build!
 
+###
+# Define clfunctions
+# IMPORTANT: Julia convention is func!(X, Y) overrides X with the operation func(X,Y)
+# For the OCL functionts the target is always LAST.
+
+diffusion!(buff_Xfield, buff_Xpot, buff_Xlap) = diffusionCL!(buff_Xfield, buff_Xpot, buff_Xlap, fieldResY, fieldResX, ctx, queue, diffusionProgram)
+smul!(X, buff_in, buff_out) =  smulCL!(X, buff_in, buff_out, fieldResY, fieldResX, ctx, queue, smulProgram)
+add!(buff_in1, buff_in2, buff_out) = addCL!(buff_in1, buff_in2, buff_out, fieldResY, fieldResX, ctx, queue, addProgram)
+potential!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion) = potentialCL!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion, long_direction, fieldResY, fieldResX, ctx, queue, potentialProgram)
+
+
 #create buffers on device
 bufferSize = fieldResX * fieldResY
 
@@ -265,25 +275,25 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     ###
     # calculate potential based on repulsion
     ###
-    potentialCL!(buff_mfield, buff_wfield, buff_dfield, buff_mpot1, buff_wpot, MW_repulsion, long_direction, fieldResY, fieldResX, ctx, queue, potentialProgram)
-    potentialCL!(buff_mfield, buff_afield, buff_dfield, buff_mpot2, buff_apot, MA_repulsion, long_direction, fieldResY, fieldResX, ctx, queue, potentialProgram)
+    potential!(buff_mfield, buff_wfield, buff_dfield, buff_mpot1, buff_wpot, MW_repulsion)
+    potential!(buff_mfield, buff_afield, buff_dfield, buff_mpot2, buff_apot, MA_repulsion)
 
-    addCL!(buff_mpot1, buff_mpot2, buff_mpot, fieldResY, fieldResX, ctx, queue, addProgram)
+    add!(buff_mpot1, buff_mpot2, buff_mpot)
 
     ###
     # move molecules and update directionality
     ###
 
-    diffusionCL!(buff_mfield, buff_mpot, buff_mlap, fieldResY, fieldResX, ctx, queue, diffusionProgram)
-    diffusionCL!(buff_wfield, buff_wpot, buff_wlap, fieldResY, fieldResX, ctx, queue, diffusionProgram)
-    diffusionCL!(buff_afield, buff_apot, buff_alap, fieldResY, fieldResX, ctx, queue, diffusionProgram)
+    diffusion!(buff_mfield, buff_mpot, buff_mlap)
+    diffusion!(buff_wfield, buff_wpot, buff_wlap)
+    diffusion!(buff_afield, buff_apot, buff_alap)
 
     ###
-    # Get multiply with *_lap with diff*
+    # Multiply *_lap with diff*
     ###
-    smulCL!(diffW, buff_wlap, buff_wlap, fieldResY, fieldResX, ctx, queue, smulProgram)
-    smulCL!(diffA, buff_alap, buff_alap, fieldResY, fieldResX, ctx, queue, smulProgram)
-    smulCL!(diffM, buff_mlap, buff_mlap, fieldResY, fieldResX, ctx, queue, smulProgram)
+    smul!(diffW, buff_wlap, buff_wlap)
+    smul!(diffA, buff_alap, buff_alap)
+    smul!(diffM, buff_mlap, buff_mlap)
 
     # Laplacian for diffusion
     # Todo calculate in on GPU to be coherent and to minimize data transfers.
@@ -337,7 +347,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
             fsm(w12, w11, kf1), fsm(w11, w12, kb1), fsm(w22, w21, kf2), fsm(w21, w22, kb2), fsm(w32, w31, kf3), fsm(w31, w32, kb3),
             fieldResY, fieldResX, ctx, queue, deltaProgram)
 
-    addCL!(buff_wlap, buff_dW, buff_dW, fieldResY, fieldResX, ctx, queue, addProgram)
+    add!(buff_wlap, buff_dW, buff_dW)
 
     ##
     # Calculate dF
@@ -347,7 +357,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
             fsm(f12, f11, kf1), fsm(f11, f12, kb1), fsm(f22, f21, kf2), fsm(f21, f22, kb2), fsm(f32, f31, kf3), fsm(f31, f32, kb3),
             fieldResY, fieldResX, ctx, queue, deltaProgram)
 
-    addCL!(buff_flap, buff_dF, buff_dF, fieldResY, fieldResX, ctx, queue, addProgram)
+    add!(buff_flap, buff_dF, buff_dF)
 
     cl.copy!(queue, dF, buff_dF)
 
@@ -356,19 +366,19 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     dT = 0
 
     # update values
-    smulCL!(stepIntegration, buff_dA, buff_dA, fieldResY, fieldResX, ctx, queue, smulProgram)
-    addCL!(buff_afield, buff_dA, buff_afield, fieldResY, fieldResX, ctx, queue, addProgram)
+    smul!(stepIntegration, buff_dA, buff_dA)
+    add!(buff_afield, buff_dA, buff_afield)
     cl.copy!(queue, Afield, buff_afield)
 
     Ffield += dF * stepIntegration
     #Tfield += dT * stepIntegration
 
-    smulCL!(stepIntegration, buff_dM, buff_dM, fieldResY, fieldResX, ctx, queue, smulProgram)
-    addCL!(buff_mfield, buff_dM, buff_mfield, fieldResY, fieldResX, ctx, queue, addProgram)
+    smul!(stepIntegration, buff_dM, buff_dM)
+    add!(buff_mfield, buff_dM, buff_mfield)
     cl.copy!(queue, Mfield, buff_mfield)
 
-    smulCL!(stepIntegration, buff_dW, buff_dW, fieldResY, fieldResX, ctx, queue, smulProgram)
-    addCL!(buff_wfield, buff_dW, buff_wfield, fieldResY, fieldResX, ctx, queue, addProgram)
+    smul!(stepIntegration, buff_dW, buff_dW)
+    add!(buff_wfield, buff_dW, buff_wfield)
     cl.copy!(queue, Wfield, buff_wfield)
 
     #save values for visualization
