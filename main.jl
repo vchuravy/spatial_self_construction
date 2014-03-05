@@ -210,6 +210,8 @@ diffusion!(buff_Xfield, buff_Xpot, buff_Xlap) = diffusionCL!(buff_Xfield, buff_X
 smul!(X, buff_in, buff_out) =  smulCL!(X, buff_in, buff_out, fieldResY, fieldResX, ctx, queue, smulProgram)
 add!(buff_in1, buff_in2, buff_out) = addCL!(buff_in1, buff_in2, buff_out, fieldResY, fieldResX, ctx, queue, addProgram)
 potential!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion) = potentialCL!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion, long_direction, fieldResY, fieldResX, ctx, queue, potentialProgram)
+align!(buff_Xfield, buff_Yfield, buff_OUTfield) = alignCL!(buff_Xfield, buff_Yfield, buff_OUTfield, attractionRate, stepIntegration, fieldResY, fieldResX, ctx, queue, alignProgram)
+calcRow!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w) = calcRowCL!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w, fieldResY, fieldResX, ctx, queue, rowProgram)
 
 
 #create buffers on device
@@ -307,19 +309,19 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     cl.copy!(queue, buff_flap, F_lap)
 
     # update direction field based on alignment
-    alignCL!(buff_mfield, buff_dfield, buff_ndfield, attractionRate, stepIntegration, fieldResY, fieldResX, ctx, queue, alignProgram)
+    align!(buff_mfield, buff_dfield, buff_ndfield)
     cl.copy!(queue, directionfield, buff_ndfield)
 
     ###
     # reactions
     ##
 
-    calcRowCL!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row1, m11, a11, f11, w11, fieldResY, fieldResX, ctx, queue, rowProgram)
-    calcRowCL!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row2, m12, a12, f12, w12, fieldResY, fieldResX, ctx, queue, rowProgram)
-    calcRowCL!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row3, m21, a21, f21, w21, fieldResY, fieldResX, ctx, queue, rowProgram)
-    calcRowCL!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row4, m22, a22, f22, w22, fieldResY, fieldResX, ctx, queue, rowProgram)
-    calcRowCL!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row5, m31, a31, f31, w31, fieldResY, fieldResX, ctx, queue, rowProgram)
-    calcRowCL!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row6, m32, a32, f32, w32, fieldResY, fieldResX, ctx, queue, rowProgram)
+    calcRow!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row1, m11, a11, f11, w11)
+    calcRow!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row2, m12, a12, f12, w12)
+    calcRow!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row3, m21, a21, f21, w21)
+    calcRow!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row4, m22, a22, f22, w22)
+    calcRow!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row5, m31, a31, f31, w31)
+    calcRow!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row6, m32, a32, f32, w32)
 
     ##
     # Calculate dA
