@@ -24,7 +24,7 @@ const alignKernel = "
 
         #define Newdir(x,y) out[y*D2 + x]
 
-        number sum(number8 n) {
+        static number sum(const number8 n) {
             return n.s0 + n.s1 +n.s2 + n.s3 + n.s4 + n.s5 + n.s6 + n.s7;
         }
 
