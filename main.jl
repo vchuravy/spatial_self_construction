@@ -424,21 +424,23 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
       subplot(243)
       plot(tx, DAvec, "-", linewidth=2)
       title("DAvec")
+      axis([0, timeTotal, 0, 0.4])
 
       subplot(244)
       plot(tx, DMvec, "-", linewidth=2)
       title("DMvec")
+      axis([0, timeTotal, 0, 0.4])
 
       subplot(245)
-      pcolormesh(Mfield)
+      pcolormesh(Mfield, vmin=0, vmax=0.6)
       title("Mfield")
 
       subplot(246)
-      pcolormesh(Afield)
+      pcolormesh(Afield, vmin=0, vmax=0.6)
       title("Afield")
 
       subplot(247)
-      pcolormesh(Ffield)
+      pcolormesh(Ffield, vmin=0, vmax=1)
       title("Ffield")
 
       if enableDirFieldVis
@@ -447,7 +449,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
 
         U = cos(directionfield)
         V = sin(directionfield)
-        plt.streamplot([1:fieldResY], [1:fieldResX], U, V)
+        plt.quiver([1:fieldResY], [1:fieldResX], U, V, linewidth=1.5, headwidth = 1.5)
       end
       yield()
     end
