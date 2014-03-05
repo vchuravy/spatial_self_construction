@@ -12,8 +12,8 @@ const cl = OpenCL
 
 include("config.jl")
 include("drawcircle.jl")
-include("potential.jl")
-include("diffusion.jl")
+#include("potential.jl")
+#include("diffusion.jl")
 include("laplacian.jl")
 #include("align.jl")
 include("cl/potentialCL.jl")
@@ -270,82 +270,6 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
 
     addCL!(buff_mpot1, buff_mpot2, buff_mpot, fieldResY, fieldResX, ctx, queue, addProgram)
 
-    if testCL
-    ##
-    # Test buff_wpot and buff_mpot1 to have the same result as previously
-    ##
-
-    M_pot1, W_pot = potential(Mfield, Wfield, directionfield, MW_repulsion, long_direction)
-    M_pot2, A_pot = potential(Mfield, Afield, directionfield, MW_repulsion, long_direction)
-    M_pot = M_pot1 + M_pot2
-    #Obtain buffer
-    M_Pot1CL = zeros(T, fieldResY, fieldResX)
-    W_PotCL = zeros(T, fieldResY, fieldResX)
-    M_Pot2CL = zeros(T, fieldResY, fieldResX)
-    A_PotCL = zeros(T, fieldResY, fieldResX)
-    M_PotCL = zeros(T, fieldResY, fieldResX)
-    cl.copy!(queue, M_Pot1CL, buff_mpot1)
-    cl.copy!(queue, W_PotCL, buff_wpot)
-    cl.copy!(queue, M_Pot2CL, buff_mpot2)
-    cl.copy!(queue, A_PotCL, buff_apot)
-    cl.copy!(queue, M_PotCL, buff_mpot)
-
-    #Calculate sumabs
-    println("M_pot1 - M_pot1CL sumabs = $(sumabs(M_pot1 - M_Pot1CL))")
-    println("W_pot - W_potCL sumabs = $(sumabs(W_pot - W_PotCL))")
-    println("M_pot2 - M_pot2CL sumabs = $(sumabs(M_pot2 - M_Pot2CL))")
-    println("A_pot - A_potCL sumabs = $(sumabs(A_pot - A_PotCL))")
-    println("M_pot - M_potCL sumabs = $(sumabs(M_pot - M_PotCL))")
-
-    isaM1 = map(isapprox, M_pot1, M_Pot1CL)
-    isaW = map(isapprox, W_pot, W_PotCL)
-    isaM2 = map(isapprox, M_pot2, M_Pot2CL)
-    isaA = map(isapprox, A_pot, A_PotCL)
-    isaM = map(isapprox, M_pot, M_PotCL)
-
-    if all(isaM1)
-        println("M_pot1 and M_pot1CL are numerical equal")
-    else
-        c = count(x -> !x, isaM1)
-        warn("M_pot1 and M_potCL1 diverge on $c points")
-        warn("The mean divergence is $(sumabs(M_pot1[!isaM1] - M_Pot1CL[!isaM1])/c)")
-    end
-
-    if all(isaW)
-        println("W_pot and W_potCL are numerical equal")
-    else
-        c = count(x -> !x, isaW)
-        warn("W_pot and W_potCL diverge on $c points")
-        warn("The mean divergence is $(sumabs(W_pot[!isaW] - W_PotCL[!isaW])/c)")
-    end
-
-    if all(isaM2)
-        println("M_pot2 and M_pot2CL are numerical equal")
-    else
-        c = count(x -> !x, isaM2)
-        warn("M_pot2 and M_potCL2 diverge on $c points")
-        warn("The mean divergence is $(sumabs(M_pot2[!isaM2] - M_Pot2CL[!isaM2])/c)")
-    end
-
-    if all(isaA)
-        println("A_pot and A_potCL are numerical equal")
-    else
-        c = count(x -> !x, isaA)
-        warn("A_pot and A_potCL diverge on $c points")
-        warn("The mean divergence is $(sumabs(A_pot[!isaA] - A_PotCL[!isaA])/c)")
-    end
-
-    if all(isaM)
-        println("M_pot and M_potCL are numerical equal")
-    else
-        c = count(x -> !x, isaM)
-        warn("M_pot and M_potCL diverge on $c points")
-        warn("The mean divergence is $(sumabs(M_pot[!isaM] - M_PotCL[!isaM])/c)")
-    end
-
-    println()
-    end # if testCL
-
     ###
     # move molecules and update directionality
     ###
@@ -353,70 +277,6 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     diffusionCL!(buff_mfield, buff_mpot, buff_mlap, fieldResY, fieldResX, ctx, queue, diffusionProgram)
     diffusionCL!(buff_wfield, buff_wpot, buff_wlap, fieldResY, fieldResX, ctx, queue, diffusionProgram)
     diffusionCL!(buff_afield, buff_apot, buff_alap, fieldResY, fieldResX, ctx, queue, diffusionProgram)
-
-    ###
-    # Test diffusion CL
-    ###
-
-    if testCL
-    # Get buffer from last step
-    M_PotCL = zeros(T, fieldResY, fieldResX)
-    W_PotCL = zeros(T, fieldResY, fieldResX)
-    A_PotCL = zeros(T, fieldResY, fieldResX)
-    cl.copy!(queue, M_PotCL, buff_mpot)
-    cl.copy!(queue, W_PotCL, buff_wpot)
-    cl.copy!(queue, A_PotCL, buff_apot)
-
-    # Calculate
-    t_M_lap  = diffusion(Mfield, M_PotCL)
-    t_W_lap  = diffusion(Wfield, W_PotCL)
-    t_A_lap  = diffusion(Afield, A_PotCL)
-
-    #Obtain buffer
-    M_lapCL = zeros(T, fieldResY, fieldResX)
-    W_lapCL = zeros(T, fieldResY, fieldResX)
-    A_lapCL = zeros(T, fieldResY, fieldResX)
-
-    cl.copy!(queue, M_lapCL, buff_mlap)
-    cl.copy!(queue, W_lapCL, buff_wlap)
-    cl.copy!(queue, A_lapCL, buff_alap)
-
-    #Calculate sumabs
-    println("W_lap  - W_lapCL sumabs = $(sumabs(t_W_lap - W_lapCL))")
-    println("A_lap  - A_lapCL sumabs = $(sumabs(t_A_lap - A_lapCL))")
-    println("M_lap  - M_lapCL sumabs = $(sumabs(t_M_lap - M_lapCL))")
-
-    isaW = map(isapprox, t_W_lap, W_lapCL)
-    isaA = map(isapprox, t_A_lap, A_lapCL)
-    isaM = map(isapprox, t_M_lap, M_lapCL)
-
-
-    if all(isaW)
-        println("W_lap and W_lapCL are numerical equal")
-    else
-        c = count(x -> !x, isaW)
-        warn("W_lap and W_lapCL diverge on $c points")
-        warn("The mean divergence is $(sumabs(t_W_lap[!isaW] - W_lapCL[!isaW])/c)")
-    end
-
-    if all(isaA)
-        println("A_lap and A_lapCL are numerical equal")
-    else
-        c = count(x -> !x, isaA)
-        warn("A_lap and A_lapCL diverge on $c points")
-        warn("The mean divergence is $(sumabs(t_A_lap[!isaA] - A_lapCL[!isaA])/c)")
-    end
-
-    if all(isaM)
-        println("M_lap and M_lapCL are numerical equal")
-    else
-        c = count(x -> !x, isaM)
-        warn("M_lap and M_lapCL diverge on $c points")
-        warn("The mean divergence is $(sumabs(t_M_lap[!isaM] - M_lapCL[!isaM])/c)")
-    end
-
-    println()
-    end # if testCL
 
     ###
     # Get multiply with *_lap with diff*
