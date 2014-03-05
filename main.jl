@@ -79,9 +79,10 @@ Wfield -= (Mfield + Afield)
 if fileName != ""
     vars = matread("data/$(fileName).mat")
 
-    for key in keys(vars)
-        ex = :(key = vars[key])
-        eval(ex)
+    for k in keys(vars)
+       s = symbol(k)
+       expr = :($s = $(vars[k]))
+       eval(expr)
     end
 
     Wfield = histWfield[:,:,loadTime]
@@ -90,9 +91,10 @@ if fileName != ""
     Ffield = histFfield[:,:,loadTime]
 end
 
-for key in keys(config)
-    ex = :(key = config[key])
-    eval(ex)
+for k in keys(config)
+       s = symbol(k)
+       expr = :($s = $(config[k]))
+       eval(expr)
 end
 
 Frefill = ones(fieldRes, fieldRes)
