@@ -196,7 +196,7 @@ meanAField = mean(Afield)
 potentialProgram = cl.Program(ctx, source=potentialKernel) |> cl.build!
 diffusionProgram = cl.Program(ctx, source=diffusionKernel) |> cl.build!
 addProgram = cl.Program(ctx, source=getAddKernel(T)) |> cl.build!
-alignProgram = cl.Program(ctx, source=getAlignKernel(T)) |> cl.build!
+alignProgram = cl.Program(ctx, source=alignKernel) |> cl.build!
 rowProgram = cl.Program(ctx, source=getRowKernel(T)) |> cl.build!
 deltaProgram = cl.Program(ctx, source=getDeltaKernel(T)) |> cl.build!
 smulProgram = cl.Program(ctx, source=getSMulKernel(T)) |> cl.build!

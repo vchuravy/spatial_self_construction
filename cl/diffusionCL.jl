@@ -50,11 +50,11 @@ const diffusionKernel =  "
             ge.s0 = Pot(south,west);
             ge.s1 = Pot(south,j   );
             ge.s2 = Pot(south,east);
-            ge.s3 = Pot(i    ,west);
-            ge.s4 = Pot(i    ,east);
-            ge.s5 = Pot(north,west);
-            ge.s6 = Pot(north,j   );
-            ge.s7 = Pot(north,east);
+            ge.s3 = Pot(i    ,east);
+            ge.s4 = Pot(north,east);
+            ge.s5 = Pot(north,j   );
+            ge.s6 = Pot(north,west);
+            ge.s7 = Pot(i    ,west);
 
             ge = ge - p;
 
@@ -100,14 +100,14 @@ const diffusionKernel =  "
 
             // Calculate the inflow based on the outflow from other cells into this on.
 
-            number inflow  =    Conc(south, west) * Flow(south, west).s7 +
-                                Conc(south, j   ) * Flow(south, j   ).s6 +
-                                Conc(south, east) * Flow(south, east).s5 +
-                                Conc(i    , west) * Flow(i    , west).s4 +
-                                Conc(i    , east) * Flow(i    , east).s3 +
+            number inflow  =    Conc(south, west) * Flow(south, west).s4 +
+                                Conc(south, j   ) * Flow(south, j   ).s5 +
+                                Conc(south, east) * Flow(south, east).s6 +
+                                Conc(i    , east) * Flow(i    , east).s7 +
                                 Conc(north, east) * Flow(north, east).s0 +
                                 Conc(north, j   ) * Flow(north, j   ).s1 +
-                                Conc(north, west) * Flow(north, west).s2 ;
+                                Conc(north, west) * Flow(north, west).s2 +
+                                Conc(i    , west) * Flow(i    , west).s3 ;
 
             // Inflow - outflow = change
 

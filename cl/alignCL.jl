@@ -2,14 +2,21 @@ import OpenCL
 const cl = OpenCL
 import cl.Buffer, cl.CmdQueue, cl.Context, cl.Program
 
-function getAlignKernel{T <: FloatingPoint}(::Type{T})
-    nType = T == Float64 ? "double" : "float"
-
-    return "
+const alignKernel = "
         #if defined(cl_khr_fp64)  // Khronos extension available?
         #pragma OPENCL EXTENSION cl_khr_fp64 : enable
+        #define number double
+        #define number8 double8
+        #define PI M_PI
         #elif defined(cl_amd_fp64)  // AMD extension available?
         #pragma OPENCL EXTENSION cl_amd_fp64 : enable
+        #define number double
+        #define number8 double8
+        #define PI M_PI
+        #else
+        #define number float
+        #define number8 float8
+        #define PI M_PI_F
         #endif
 
         #define Conc(x,y) a[y*D2 + x]
@@ -17,14 +24,18 @@ function getAlignKernel{T <: FloatingPoint}(::Type{T})
 
         #define Newdir(x,y) out[y*D2 + x]
 
+        number sum(number8 n) {
+            return n.s0 + n.s1 +n.s2 + n.s3 + n.s4 + n.s5 + n.s6 + n.s7;
+        }
+
         __kernel void align(
-                      __global const $nType *a,
-                      __global const $nType *b,
-                      __global $nType *out,
+                      __global const number *a,
+                      __global const number *b,
+                      __global number *out,
                       const int D1,
                       const int D2,
-                      const $nType attraction,
-                      const $nType step) {
+                      const number attraction,
+                      const number step) {
 
         int i = get_global_id(0);
         int j = get_global_id(1);
@@ -42,47 +53,46 @@ function getAlignKernel{T <: FloatingPoint}(::Type{T})
         if(i == 0)
             south = D1 - 1;
 
-        $nType direction = Dir(i, j);
+        // Getting the data and storing it in two eight vectors
+        number direction = Dir(i, j);
 
-        $nType diff[3][3];
-        $nType potential[3][3];
+        number8 conc;
+        conc.s0 = Conc(south,west);
+        conc.s1 = Conc(south,j   );
+        conc.s2 = Conc(south,east);
+        conc.s3 = Conc(i    ,east);
+        conc.s4 = Conc(north,east);
+        conc.s5 = Conc(north,j   );
+        conc.s6 = Conc(north,west);
+        conc.s7 = Conc(i    ,west);
 
-        diff[2][0] = fmod(direction - Dir(north,west), M_PI);
-        diff[2][1] = fmod(direction - Dir(north,j   ), M_PI);
-        diff[2][2] = fmod(direction - Dir(north,east), M_PI);
-        diff[1][0] = fmod(direction - Dir(i,west    ), M_PI);
-        diff[1][1] = 0;
-        diff[1][2] = fmod(direction - Dir(i,east    ), M_PI);
-        diff[0][0] = fmod(direction - Dir(south,west), M_PI);
-        diff[0][1] = fmod(direction - Dir(south,j   ), M_PI);
-        diff[0][2] = fmod(direction - Dir(south,east), M_PI);
+        number8 dir;
+        dir.s0 = Dir(south,west);
+        dir.s1 = Dir(south,j   );
+        dir.s2 = Dir(south,east);
+        dir.s3 = Dir(i    ,east);
+        dir.s4 = Dir(north,east);
+        dir.s5 = Dir(north,j   );
+        dir.s6 = Dir(north,west);
+        dir.s7 = Dir(i    ,west);
 
-        for(int i = 0; i < 3; i++) {
-            for(int j = 0; j < 3; j++) {
-                potential[i][j] = -sin( 2 * diff[i][j] );
-            }
-        }
+        // Calculate
+        number8 diff;
 
+        diff = direction - dir;
+        diff = fmod(diff, PI);
+        diff = -sin(2 * diff);
 
-        $nType dtheta = 0;
-
-        dtheta += Conc(north,west) * potential[2][0];
-        dtheta += Conc(north,j   ) * potential[2][1];
-        dtheta += Conc(north,east) * potential[2][2];
-        dtheta += Conc(i,west    ) * potential[1][0];
-
-        dtheta += Conc(i,east    ) * potential[1][2];
-        dtheta += Conc(south,west) * potential[0][0];
-        dtheta += Conc(south,j   ) * potential[0][1];
-        dtheta += Conc(south,east) * potential[0][2];
+        number dtheta = sum(conc * diff);
 
         dtheta = attraction * dtheta / 8;
-        $nType ndir = direction + dtheta * step;
+        number ndir = direction + dtheta * step;
 
-        Newdir(i,j) = fmod(ndir,M_PI);
+        Newdir(i,j) = fmod(ndir,PI);
+
+
     }
     "
-end
 
 function alignCL!{T <: FloatingPoint}(
     a_buff :: Buffer{T}, b_buff :: Buffer{T},
