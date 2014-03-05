@@ -19,18 +19,18 @@ stepVisualization=10
 # initial configuration
 ###
 
-xc = fieldSize/2 # circle center's x position
-yc = fieldSize/2 # circle center's y position
-mR = 180 # membraneRadius
-mT = 170  # membraneThickness
-fD = 20 # food refill distance
+_xc = fieldSize/2 # circle center's x position
+_yc = fieldSize/2 # circle center's y position
+_mR = 180 # membraneRadius
+_mT = 170  # membraneThickness
+_fD = 20 # food refill distance
 
 # adjust membrane for given resolution
-xc = ceil(xc*fieldRes/fieldSize)
-yc = ceil(yc*fieldRes/fieldSize)
-mR = ceil(mR*fieldRes/fieldSize) # membraneRadius
-mT = ceil(mT*fieldRes/fieldSize) # membraneThickness
-fD = ceil(fD*fieldRes/fieldSize) # membraneThickness
+xc = ceil(_xc*fieldRes/fieldSize)
+yc = ceil(_yc*fieldRes/fieldSize)
+mR = ceil(_mR*fieldRes/fieldSize) # membraneRadius
+mT = ceil(_mT*fieldRes/fieldSize) # membraneThickness
+fD = ceil(_fD*fieldRes/fieldSize) # membraneThickness
 
 avgM = 0.8 #initial concentration of M in membrane
 avgA = 0.6

@@ -6,6 +6,7 @@ using MAT
 using ProgressMeter
 using Datetime
 using PyPlot
+import NumericExtensions.sumabs
 import OpenCL
 const cl = OpenCL
 
@@ -13,10 +14,11 @@ include("config.jl")
 include("drawcircle.jl")
 #include("potential.jl")
 #include("diffusion.jl")
-include("laplacian.jl")
+#include("laplacian.jl")
 #include("align.jl")
 include("cl/potentialCL.jl")
 include("cl/diffusionCL.jl")
+include("cl/laplacianCL.jl")
 include("cl/addCL.jl")
 include("cl/alignCL.jl")
 include("cl/calcRowCL.jl")
@@ -28,7 +30,7 @@ include("cl/deltaStep2CL.jl")
 # set up initial configuration
 ###
 
-function main(;enableVis = false, enableDirFieldVis = false, fileName = "", loadTime = 0, debug = false)
+function main(config=Dict();enableVis = false, enableDirFieldVis = false, fileName = "", loadTime = 0, debug = false)
 ###
 # Prepare GPU
 ###
@@ -43,11 +45,11 @@ const CL64BIT =
         false
     end
 
-    simulation(enableVis, enableDirFieldVis, fileName, loadTime, device, ctx, queue, CL64BIT, CL64BIT ? Float64 : Float32, debug)
+    simulation(enableVis, enableDirFieldVis, fileName, loadTime, device, ctx, queue, CL64BIT, CL64BIT ? Float64 : Float32, debug, config)
 
 end
 
-function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, device, ctx, queue, CL64BIT, :: Type{T}, testCL :: Bool )
+function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, device, ctx, queue, CL64BIT, :: Type{T}, testCL :: Bool, config :: Dict)
 # initialize membrane fields
 Afield = zeros(T, fieldResY, fieldResX)
 Mfield = zeros(T, fieldResY, fieldResX)
@@ -75,17 +77,29 @@ Afield += avgA * A_circ
 Wfield -= (Mfield + Afield)
 
 if fileName != ""
-  dataFile = matopen("data/$(fileName).mat")
-  histWfield = read(dataFile, "history_W")
-  histAfield = read(dataFile, "history_A")
-  histMfield = read(dataFile, "history_M")
-  histFfield = read(dataFile, "history_F")
+    vars = matread("data/$(fileName).mat")
 
-  Wfield = histWfield[:,:,loadTime]
-  Afield = histAfield[:,:,loadTime]
-  Mfield = histMfield[:,:,loadTime]
-  Ffield = histFfield[:,:,loadTime]
+    for key in keys(vars)
+        ex = :(key = vars[key])
+        eval(ex)
+    end
+
+    Wfield = histWfield[:,:,loadTime]
+    Afield = histAfield[:,:,loadTime]
+    Mfield = histMfield[:,:,loadTime]
+    Ffield = histFfield[:,:,loadTime]
 end
+
+for key in keys(config)
+    ex = :(key = config[key])
+    eval(ex)
+end
+
+Frefill = ones(fieldRes, fieldRes)
+frefillX = ceil(fieldRes/2)-mR-mT-fD+1 : ceil(fieldRes/2)+mR+mT+fD
+frefillY = ceil(fieldRes/2)-mR-mT-fD+1 : ceil(fieldRes/2)+mR+mT+fD
+Frefill[frefillX, frefillY] = 0
+FrefillBinMask = Frefill .> 0.5
 
 ###
 # directionality initialization
@@ -169,14 +183,6 @@ for xx in 1:fieldResX
     end
 end
 
-W_lap = zeros(T, fieldResY, fieldResX)
-A_lap = zeros(T, fieldResY, fieldResX)
-M_lap = zeros(T, fieldResY, fieldResX)
-F_lap = zeros(T, fieldResY, fieldResX)
-
-dA = zeros(T, fieldResY, fieldResX)
-dW = zeros(T, fieldResY, fieldResX)
-dM = zeros(T, fieldResY, fieldResX)
 dF = zeros(T, fieldResY, fieldResX)
 
 ###
@@ -200,6 +206,7 @@ rowProgram = cl.Program(ctx, source=getRowKernel(T)) |> cl.build!
 deltaProgram = cl.Program(ctx, source=getDeltaKernel(T)) |> cl.build!
 smulProgram = cl.Program(ctx, source=getSMulKernel(T)) |> cl.build!
 delta2Program = cl.Program(ctx, source=delta2Kernel) |> cl.build!
+laplacianProgram = cl.Program(ctx, source=laplacianKernel) |> cl.build!
 
 ###
 # Define clfunctions
@@ -212,7 +219,7 @@ add!(buff_in1, buff_in2, buff_out) = addCL!(buff_in1, buff_in2, buff_out, fieldR
 potential!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion) = potentialCL!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion, long_direction, fieldResY, fieldResX, ctx, queue, potentialProgram)
 align!(buff_Xfield, buff_Yfield, buff_OUTfield) = alignCL!(buff_Xfield, buff_Yfield, buff_OUTfield, attractionRate, stepIntegration, fieldResY, fieldResX, ctx, queue, alignProgram)
 calcRow!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w) = calcRowCL!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w, fieldResY, fieldResX, ctx, queue, rowProgram)
-
+laplacian!(buff_in, buff_out) = laplacianCL!(buff_in, buff_out, fieldResY, fieldResX, ctx, queue, laplacianProgram )
 
 #create buffers on device
 bufferSize = fieldResX * fieldResY
@@ -287,26 +294,19 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     ###
 
     diffusion!(buff_mfield, buff_mpot, buff_mlap)
-    diffusion!(buff_wfield, buff_wpot, buff_wlap)
-    diffusion!(buff_afield, buff_apot, buff_alap)
-
-    ###
-    # Multiply *_lap with diff*
-    ###
-    smul!(diffW, buff_wlap, buff_wlap)
-    smul!(diffA, buff_alap, buff_alap)
     smul!(diffM, buff_mlap, buff_mlap)
+
+    diffusion!(buff_wfield, buff_wpot, buff_wlap)
+    smul!(diffW, buff_wlap, buff_wlap)
+
+    diffusion!(buff_afield, buff_apot, buff_alap)
+    smul!(diffA, buff_alap, buff_alap)
+
 
     # Laplacian for diffusion
     # Todo calculate in on GPU to be coherent and to minimize data transfers.
-    F_lap = diffF * LaPlacian(Ffield)
-
-    ###
-    # Push them again
-    # Todo: add function to do buffer multiplication
-    ###
-
-    cl.copy!(queue, buff_flap, F_lap)
+    laplacian!(buff_ffield, buff_flap)
+    smul!(diffF, buff_flap, buff_flap)
 
     # update direction field based on alignment
     align!(buff_mfield, buff_dfield, buff_ndfield)
@@ -490,7 +490,75 @@ matwrite("results/$(now()).mat", {
     "Mvec" => Mvec,
     "Wvec" => Wvec,
     "DAvec" => DAvec,
-    "DMvec" => DMvec})
+    "DMvec" => DMvec,
+    "fieldSize" => fieldSize,
+    "fieldRes" => fieldRes,
+    "fieldSizeY" => fieldSizeY,
+    "fieldSizeX" => fieldSizeX,
+    "fieldResY" => fieldResY,
+    "fieldResX" => fieldResX,
+    "timeTotal" => timeTotal,
+    "stepIntegration" => stepIntegration,
+    "visInterval" => visInterval,
+    "stepVisualization" => stepVisualization,
+    "xc" => xc,
+    "yc" => yc,
+    "mR" => mR,
+    "mT" => mT,
+    "fD" => fD,
+    "avgM" => avgM,
+    "avgA" => avgA,
+    "avgF" => avgF,
+    "avgT" => avgT,
+    "tearTime1" => tearTime1,
+    "tearTime2" => tearTime2,
+    "tearSize1" => tearSize1,
+    "tearSize2" => tearSize2,
+    "diffusionF" => diffusionF,
+    "diffusionT" => diffusionT,
+    "diffusionA" => diffusionA,
+    "diffusionM" => diffusionM,
+    "diffusionW" => diffusionW,
+    "attractionRate" => attractionRate,
+    "MW_repulsion" => MW_repulsion,
+    "long_direction" => long_direction,
+    "decayA" => decayA,
+    "decayM" => decayM,
+    "flowRateF" => flowRateF,
+    "saturationF" => saturationF,
+    "noiseMean" => noiseMean,
+    "noiseSD" => noiseSD,
+    "a11" => a11,
+    "a12" => a12,
+    "a21" => a21,
+    "a22" => a22,
+    "a31" => a31,
+    "a32" => a32,
+    "f11" => f11,
+    "f12" => f12,
+    "f21" => f21,
+    "f22" => f22,
+    "f31" => f31,
+    "f32" => f32,
+    "m11" => m11,
+    "m12" => m12,
+    "m21" => m21,
+    "m22" => m22,
+    "m31" => m31,
+    "m32" => m32,
+    "w11" => w11,
+    "w12" => w12,
+    "w21" => w21,
+    "w22" => w22,
+    "w31" => w31,
+    "w32" => w32,
+    "kf1" => kf1,
+    "kb1" => kb1,
+    "kf2" => kf2,
+    "kb2" => kb2,
+    "kf3" => kf3,
+    "kb3" => kb3
+     })
 
 println("Press any key to exit program.")
 readline(STDIN)
