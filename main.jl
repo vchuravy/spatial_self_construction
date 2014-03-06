@@ -236,6 +236,9 @@ align!(buff_Xfield, buff_Yfield, buff_OUTfield) = alignCL!(buff_Xfield, buff_Yfi
 calcRow!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w) = calcRowCL!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w, fieldResY, fieldResX, ctx, queue, rowProgram)
 laplacian!(buff_in, buff_out) = laplacianCL!(buff_in, buff_out, fieldResY, fieldResX, ctx, queue, laplacianProgram )
 
+copy!(target, source) = cl.copy!(queue, target, source)
+
+
 #create buffers on device
 bufferSize = fieldResX * fieldResY
 
@@ -299,11 +302,11 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     # Pushing the fields on the GPU
     ###
 
-    cl.copy!(queue, buff_mfield, Mfield)
-    cl.copy!(queue, buff_wfield, Wfield)
-    cl.copy!(queue, buff_afield, Afield)
-    cl.copy!(queue, buff_ffield, Ffield)
-    cl.copy!(queue, buff_dfield, directionfield)
+    copy!(buff_mfield, Mfield)
+    copy!(buff_wfield, Wfield)
+    copy!(buff_afield, Afield)
+    copy!(buff_ffield, Ffield)
+    copy!(buff_dfield, directionfield)
 
     ###
     # calculate potential based on repulsion
@@ -334,7 +337,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
 
     # update direction field based on alignment
     align!(buff_mfield, buff_dfield, buff_ndfield)
-    cl.copy!(queue, directionfield, buff_ndfield)
+    copy!(directionfield, buff_ndfield)
 
     ###
     # reactions
@@ -385,7 +388,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
 
     add!(buff_flap, buff_dF, buff_dF)
 
-    cl.copy!(queue, dF, buff_dF)
+    copy!(dF, buff_dF)
 
     dF[FrefillBinMask] += flowRateF * (saturationF - Ffield[FrefillBinMask])
 
@@ -394,18 +397,18 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     # update values
     smul!(stepIntegration, buff_dA, buff_dA)
     add!(buff_afield, buff_dA, buff_afield)
-    cl.copy!(queue, Afield, buff_afield)
+    copy!(Afield, buff_afield)
 
     Ffield += dF * stepIntegration
     #Tfield += dT * stepIntegration
 
     smul!(stepIntegration, buff_dM, buff_dM)
     add!(buff_mfield, buff_dM, buff_mfield)
-    cl.copy!(queue, Mfield, buff_mfield)
+    copy!(Mfield, buff_mfield)
 
     smul!(stepIntegration, buff_dW, buff_dW)
     add!(buff_wfield, buff_dW, buff_wfield)
-    cl.copy!(queue, Wfield, buff_wfield)
+    copy!(Wfield, buff_wfield)
 
     #save values for visualization
     meanAField = mean(Afield)
