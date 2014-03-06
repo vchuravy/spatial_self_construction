@@ -269,7 +269,7 @@ buff_dA = cl.Buffer(T, ctx, :rw, bufferSize)
 buff_dM = cl.Buffer(T, ctx, :rw, bufferSize)
 buff_dF = cl.Buffer(T, ctx, :rw, bufferSize)
 
-while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAField < 2) && (meanAField > 0.001)
+while (t <= timeTotal) # && (meanMField < 2) && (meanMField > 0.001) && (meanAField < 2) && (meanAField > 0.001)
     ###
     # Todo only calc mean once per step
     ###
@@ -495,7 +495,8 @@ end
 ###
 # Export
 ###
-matwrite("results/$(now()).mat", {
+dt=now()
+matwrite("results/$(year(dt))-$(month(dt))-$(day(dt))_$(hour(dt)):$(minute(dt)):$(second(dt)).mat", {
     "history_A" => history_A,
     "history_F" => history_F,
     "history_T" => history_T,
