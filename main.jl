@@ -69,7 +69,7 @@ Mfield = zeros(T, fieldResY, fieldResX)
 Ffield = avgF * ones(T, fieldResY, fieldResX)
 Tfield = zeros(T, fieldResY, fieldResX)
 Wfield = ones(T, fieldResY, fieldResX)
-directionfield = pi/2 * ones(T, fieldResY, fieldResX)
+directionfield = pi/4 * ones(T, fieldResY, fieldResX)
 
 # draw membrane circle
 M_circ = zeros(T, fieldResY, fieldResX)
@@ -457,14 +457,14 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
       pcolormesh(Ffield, vmin=0, vmax=1)
       title("Ffield")
 
-      if enableDirFieldVis
+      # if enableDirFieldVis
         subplot(248)
         title("DirectionField")
 
         U = cos(directionfield)
         V = sin(directionfield)
-        plt.quiver([1:fieldResY], [1:fieldResX], U, V, linewidth=1.5, headwidth = 1.5)
-      end
+        plt.quiver([1:fieldResY], [1:fieldResX], U, V, linewidth=1.5, headwidth = 0.5)
+      # end
       yield()
     end
     end
