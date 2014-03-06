@@ -252,6 +252,10 @@ read(source) = cl.read(queue, source)
 
 create() = cl.Buffer(T, ctx, :rw, fieldResX * fieldResY)
 else
+    read(source) = copy(source)
+    copy!(target, source) = Base.copy!(target, source)
+
+    create() = Array(T, fieldResY, fieldResX)
     error("Pure Julia is currently not supported")
 end
 
