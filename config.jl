@@ -1,6 +1,7 @@
 ###
 # Configuration
 ###
+include("drawcircle.jl")
 
 fieldSize = 2400
 fieldRes = 40
@@ -33,15 +34,22 @@ mT = ceil(_mT*fieldRes/fieldSize) # membraneThickness
 fD = ceil(_fD*fieldRes/fieldSize) # membraneThickness
 
 avgM = 0.8 #initial concentration of M in membrane
-avgA = 0.6
+avgA = 0.6 #0.6
 avgF = 0.18
 avgT = 0.0
 
-Frefill = ones(fieldRes, fieldRes)
-frefillX = ceil(fieldRes/2)-mR-mT-fD+1 : ceil(fieldRes/2)+mR+mT+fD
-frefillY = ceil(fieldRes/2)-mR-mT-fD+1 : ceil(fieldRes/2)+mR+mT+fD
-Frefill[frefillX, frefillY] = 0
-FrefillBinMask = Frefill .> 0.5
+Frefill = zeros(fieldRes, fieldRes)
+for r in 0:0.01:(mR+mT+fD)
+    drawcircle!(Frefill, xc, yc, r)
+end
+FrefillBinMask = Frefill .< 0.5
+
+# Frefill = ones(fieldRes, fieldRes)
+# frefillX = ceil(fieldRes/2)-mR-mT-fD+1 : ceil(fieldRes/2)+mR+mT+fD
+# frefillY = ceil(fieldRes/2)-mR-mT-fD+1 : ceil(fieldRes/2)+mR+mT+fD
+# Frefill[frefillX, frefillY] = 0
+# FrefillBinMask = Frefill .> 0.5
+
 
 ###
 #Tear membrane
