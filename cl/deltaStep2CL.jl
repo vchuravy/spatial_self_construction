@@ -2,23 +2,23 @@ import OpenCL
 const cl = OpenCL
 import cl.Buffer, cl.CmdQueue, cl.Context, cl.Program
 
-const delta2Kernel = "
+function getDelta2Kernel{T <: FloatingPoint}(:: Type{T})
+        nType = T == Float64 ? "double" : "float"
+
+        return "
         #if defined(cl_khr_fp64)  // Khronos extension available?
         #pragma OPENCL EXTENSION cl_khr_fp64 : enable
-        #define number double
         #elif defined(cl_amd_fp64)  // AMD extension available?
         #pragma OPENCL EXTENSION cl_amd_fp64 : enable
-        #define number double
-        #else
-        #define number float
         #endif
+        #define number $nType
 
         #define delta(x,y)  d[y*D2 + x]
         #define AField(x,y) a[y*D2 + x]
         #define BField(x,y) b[y*D2 + x]
         #define Lap(x,y)    l[y*D2 + x]
 
-        #define Out(x,y)         out[y*D2 + x]
+        #define Out(x,y)    out[y*D2 + x]
 
         __kernel void delta2(
                       __global const number *d,
@@ -35,6 +35,7 @@ const delta2Kernel = "
             Out(i,j) = delta(i,j) / (1 + AField(i,j)) - decay * BField(i,j) + Lap(i,j);
         }
 "
+end
 
 function delta2CL!{T <: FloatingPoint}(
     delta_buff :: Buffer{T}, af_buff :: Buffer{T}, bf_buff :: Buffer{T}, lap_buff :: Buffer{T},

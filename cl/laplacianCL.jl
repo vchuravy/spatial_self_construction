@@ -2,19 +2,16 @@ import OpenCL
 const cl = OpenCL
 import cl.Buffer, cl.CmdQueue, cl.Context, cl.Program
 
-const  laplacianKernel =  "
+function getLaplacianKernel{T <: FloatingPoint}(:: Type{T})
+        nType = T == Float64 ? "double" : "float"
+
+        return "
         #if defined(cl_khr_fp64)  // Khronos extension available?
         #pragma OPENCL EXTENSION cl_khr_fp64 : enable
-        #define number double
-        #define number8 double8
         #elif defined(cl_amd_fp64)  // AMD extension available?
         #pragma OPENCL EXTENSION cl_amd_fp64 : enable
-        #define number double
-        #define number8 double8
-        #else
-        #define number float
-        #define number8 float8
         #endif
+        #define number $nType
 
         #define Ap(x,y) a[y*D2 + x]
 
@@ -54,6 +51,7 @@ const  laplacianKernel =  "
                                     Ap(i    , east))/8;
     }
 "
+end
 
 function laplacianCL!{T <: FloatingPoint}(
     a_buff :: Buffer{T},

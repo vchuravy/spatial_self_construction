@@ -2,25 +2,21 @@ import OpenCL
 const cl = OpenCL
 import cl.Buffer, cl.CmdQueue, cl.Context, cl.Program
 
-const potentialKernel = "
+function getPotentialKernel{T <: FloatingPoint}(:: Type{T})
+        nType = T == Float64 ? "double" : "float"
+        nPi = T == Float64 ? "M_PI" : "M_PI_F"
+        nPi4 = T == Float64 ? "M_PI_4" : "M_PI_4_F"
+
+        return "
         #if defined(cl_khr_fp64)  // Khronos extension available?
         #pragma OPENCL EXTENSION cl_khr_fp64 : enable
-        #define PI M_PI
-        #define PI_4 M_PI_4
-        #define number double
-        #define number4 double4
         #elif defined(cl_amd_fp64)  // AMD extension available?
         #pragma OPENCL EXTENSION cl_amd_fp64 : enable
-        #define PI M_PI
-        #define PI_4 M_PI_4
-        #define number double
-        #define number4 double4
-        #else
-        #define PI M_PI
-        #define PI_4 M_PI_4_F
-        #define number float
-        #define number4 float4
         #endif
+        #define number $nType
+        #define number4 $(nType)4
+        #define PI $nPi
+        #define PI_4 $nPi4
 
         #define Afield(x,y) a[y*D2 + x]
         #define Bfield(x,y) b[y*D2 + x]
@@ -126,6 +122,7 @@ const potentialKernel = "
                                         fma(Bfield(i,east    ), a_ij.s3, Bfield(i,j)))))))));
     }
 "
+end
 
 function potentialCL!{T <: FloatingPoint}(
     a_buff :: Buffer{T}, b_buff :: Buffer{T}, d_buff :: Buffer{T},

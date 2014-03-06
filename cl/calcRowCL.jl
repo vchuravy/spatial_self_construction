@@ -11,6 +11,7 @@ function getRowKernel{T <: FloatingPoint}(::Type{T})
         #elif defined(cl_amd_fp64)  // AMD extension available?
         #pragma OPENCL EXTENSION cl_amd_fp64 : enable
         #endif
+        #define number $nType
 
         #define M(x,y) a[y*D2 + x]
         #define A(x,y) b[y*D2 + x]
@@ -20,17 +21,17 @@ function getRowKernel{T <: FloatingPoint}(::Type{T})
         #define Out(x,y) out[y*D2 + x]
 
         __kernel void calcRow(
-                      __global const $nType *a,
-                      __global const $nType *b,
-                      __global const $nType *c,
-                      __global const $nType *d,
-                      __global $nType *out,
+                      __global const number *a,
+                      __global const number *b,
+                      __global const number *c,
+                      __global const number *d,
+                      __global number *out,
                       const int D1,
                       const int D2,
-                      const $nType m,
-                      const $nType _a,
-                      const $nType f,
-                      const $nType w) {
+                      const number m,
+                      const number _a,
+                      const number f,
+                      const number w) {
 
         int i = get_global_id(0);
         int j = get_global_id(1);

@@ -2,19 +2,18 @@ import OpenCL
 const cl = OpenCL
 import cl.Buffer, cl.CmdQueue, cl.Context, cl.Program
 
-const diffusionKernel =  "
+function getDiffusionKernel{T <: FloatingPoint}(:: Type{T})
+        nType = T == Float64 ? "double" : "float"
+        nOne = T == Float64 ? "1.0" : "1.0f"
+
+        return "
         #if defined(cl_khr_fp64)  // Khronos extension available?
         #pragma OPENCL EXTENSION cl_khr_fp64 : enable
-        #define number double
-        #define number8 double8
         #elif defined(cl_amd_fp64)  // AMD extension available?
         #pragma OPENCL EXTENSION cl_amd_fp64 : enable
-        #define number double
-        #define number8 double8
-        #else
-        #define number float
-        #define number8 float8
         #endif
+        #define number $nType
+        #define number8 $(nType)8
 
         #define Conc(x,y) a[y*D2 + x]
         #define Pot(x,y) b[y*D2 + x]
@@ -61,9 +60,9 @@ const diffusionKernel =  "
             ge = -1 * ge / (1-exp(ge));
 
             //Check for NaN
-            const number8 ones = (number8)(1.0);
+            const number8 ones = (number8)($nOne);
             ge = select(ge, ones, isnan(ge));
-            Flow(i,j) = ge / 8.0;
+            Flow(i,j) = ge / 8;
 
         }
 
@@ -114,6 +113,7 @@ const diffusionKernel =  "
             P_move(i,j) = inflow - outflow;
     }
 "
+end
 
 function diffusionCL!{T <: FloatingPoint}(
     a_buff :: Buffer{T}, b_buff :: Buffer{T},

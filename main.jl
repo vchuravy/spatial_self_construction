@@ -213,15 +213,15 @@ meanAField = mean(Afield)
 ###
 # CL prepare programs.
 
-potentialProgram = cl.Program(ctx, source=potentialKernel) |> cl.build!
-diffusionProgram = cl.Program(ctx, source=diffusionKernel) |> cl.build!
+potentialProgram = cl.Program(ctx, source=getPotentialKernel(T)) |> cl.build!
+diffusionProgram = cl.Program(ctx, source=getDiffusionKernel(T)) |> cl.build!
 addProgram = cl.Program(ctx, source=getAddKernel(T)) |> cl.build!
-alignProgram = cl.Program(ctx, source=alignKernel) |> cl.build!
+alignProgram = cl.Program(ctx, source=getAlignKernel(T)) |> cl.build!
 rowProgram = cl.Program(ctx, source=getRowKernel(T)) |> cl.build!
 deltaProgram = cl.Program(ctx, source=getDeltaKernel(T)) |> cl.build!
 smulProgram = cl.Program(ctx, source=getSMulKernel(T)) |> cl.build!
-delta2Program = cl.Program(ctx, source=delta2Kernel) |> cl.build!
-laplacianProgram = cl.Program(ctx, source=laplacianKernel) |> cl.build!
+delta2Program = cl.Program(ctx, source=getDelta2Kernel(T)) |> cl.build!
+laplacianProgram = cl.Program(ctx, source=getLaplacianKernel(T)) |> cl.build!
 
 ###
 # Define clfunctions
@@ -268,6 +268,13 @@ buff_dW = cl.Buffer(T, ctx, :rw, bufferSize)
 buff_dA = cl.Buffer(T, ctx, :rw, bufferSize)
 buff_dM = cl.Buffer(T, ctx, :rw, bufferSize)
 buff_dF = cl.Buffer(T, ctx, :rw, bufferSize)
+
+# Make sure that the fields are in the correct DataFormat
+Mfield = convert(Array{T}, Mfield)
+Afield = convert(Array{T}, Afield)
+Wfield = convert(Array{T}, Wfield)
+Ffield = convert(Array{T}, Ffield)
+Tfield = convert(Array{T}, Tfield)
 
 while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAField < 2) && (meanAField > 0.001)
     ###

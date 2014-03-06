@@ -2,22 +2,19 @@ import OpenCL
 const cl = OpenCL
 import cl.Buffer, cl.CmdQueue, cl.Context, cl.Program
 
-const alignKernel = "
+function getAlignKernel{T <: FloatingPoint}(:: Type{T})
+        nType = T == Float64 ? "double" : "float"
+        nPi = T == Float64 ? "M_PI" : "M_PI_F"
+
+        return "
         #if defined(cl_khr_fp64)  // Khronos extension available?
         #pragma OPENCL EXTENSION cl_khr_fp64 : enable
-        #define number double
-        #define number8 double8
-        #define PI M_PI
         #elif defined(cl_amd_fp64)  // AMD extension available?
         #pragma OPENCL EXTENSION cl_amd_fp64 : enable
-        #define number double
-        #define number8 double8
-        #define PI M_PI
-        #else
-        #define number float
-        #define number8 float8
-        #define PI M_PI_F
         #endif
+        #define number $nType
+        #define number8 $(nType)8
+        #define PI $nPi
 
         #define Conc(x,y) a[y*D2 + x]
         #define Dir(x,y)  b[y*D2 + x]
@@ -93,6 +90,7 @@ const alignKernel = "
 
     }
     "
+end
 
 function alignCL!{T <: FloatingPoint}(
     a_buff :: Buffer{T}, b_buff :: Buffer{T},

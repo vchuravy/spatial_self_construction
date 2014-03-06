@@ -11,6 +11,7 @@ function getDeltaKernel{T <: FloatingPoint}(::Type{T})
         #elif defined(cl_amd_fp64)  // AMD extension available?
         #pragma OPENCL EXTENSION cl_amd_fp64 : enable
         #endif
+        #define number $nType
 
         #define R1(x,y) row1[y*D2 + x]
         #define R2(x,y) row2[y*D2 + x]
@@ -22,19 +23,19 @@ function getDeltaKernel{T <: FloatingPoint}(::Type{T})
         #define Out(x,y) out[y*D2 + x]
 
         __kernel void delta(
-                      __global const $nType *row1,
-                      __global const $nType *row2,
-                      __global const $nType *row3,
-                      __global const $nType *row4,
-                      __global const $nType *row5,
-                      __global const $nType *row6,
-                      __global $nType *out,
-                      const $nType r1,
-                      const $nType r2,
-                      const $nType r3,
-                      const $nType r4,
-                      const $nType r5,
-                      const $nType r6,
+                      __global const number *row1,
+                      __global const number *row2,
+                      __global const number *row3,
+                      __global const number *row4,
+                      __global const number *row5,
+                      __global const number *row6,
+                      __global number *out,
+                      const number r1,
+                      const number r2,
+                      const number r3,
+                      const number r4,
+                      const number r5,
+                      const number r6,
                       const int D1,
                       const int D2) {
 

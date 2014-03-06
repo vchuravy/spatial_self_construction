@@ -11,13 +11,12 @@ function getAddKernel{T <: FloatingPoint}(::Type{T})
         #elif defined(cl_amd_fp64)  // AMD extension available?
         #pragma OPENCL EXTENSION cl_amd_fp64 : enable
         #endif
-
-
+        #define number $nType
 
         __kernel void add(
-                      __global const $nType *a,
-                      __global const $nType *b,
-                      __global $nType *out) {
+                      __global const number *a,
+                      __global const number *b,
+                      __global number *out) {
 
         int i = get_global_id(0);
 
