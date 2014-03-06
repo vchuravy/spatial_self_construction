@@ -252,6 +252,14 @@ read(source) = cl.read(queue, source)
 
 create() = cl.Buffer(T, ctx, :rw, fieldResX * fieldResY)
 else
+    diffusion!(buff_Xfield, buff_Xpot, buff_Xlap) = diffusionJl!(buff_Xfield, buff_Xpot, buff_Xlap)
+    smul!(X, buff_in, buff_out) = nm.multiply!(copy!(bouff_out, buff_in), X)
+    add!(in1, in2, out) = nm.add!(copy!(out, in1), in2)
+    potential!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion) = potentialJl!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion, long_direction)
+    align!(buff_Xfield, buff_Yfield, buff_OUTfield) = alignJl!(buff_Xfield, buff_Yfield, buff_OUTfield, attractionRate, stepIntegration)
+    laplacian!(buff_in, buff_out) = LaPlacianJl!(buff_in, buff_out)
+
+
     read(source) = copy(source)
     copy!(target, source) = Base.copy!(target, source)
 

@@ -4,10 +4,8 @@
 
 using NumericExtensions
 
-function align(conc, dir, attraction, step) #concentration and direction
-
+function alignJl!(conc :: Matrix, dir :: Matrix, newdir :: Matrix, attraction :: Real, step :: Real) #concentration and direction
     d1,d2 = size(conc)
-    newdir = zeros(Float64, d1,d2)
 
     diff = zeros(Float64, 3,3)
     tmp = zeros(Float64, 3,3)
@@ -63,5 +61,4 @@ function align(conc, dir, attraction, step) #concentration and direction
             newdir[i,j] = mod(ndir, pi)
         end
     end
-    return newdir
 end

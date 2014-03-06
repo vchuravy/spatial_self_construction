@@ -83,12 +83,10 @@ function flow(Pot :: Matrix)
     return Flow
 end
 
-function diffusion(conc :: Matrix, pot :: Matrix) #concentration and direction
+function diffusionJl!(conc :: Matrix, pot :: Matrix, p_move :: Matrix) #concentration and direction
     d1, d2 = size(conc)
 
     Flow = flow(pot)
-
-    p_move = zeros(Float64, d1, d2)
 
     for j in 1:d2
         for i in 1:d1
@@ -124,5 +122,4 @@ function diffusion(conc :: Matrix, pot :: Matrix) #concentration and direction
             p_move[i,j] = inflow - outflow
         end
     end
-    return p_move
 end

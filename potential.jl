@@ -41,14 +41,10 @@ function area{T <: FloatingPoint}(direction :: Array{T, 2}, LONG :: Real)
 end
 
 
-function potential(Afield :: Matrix, Bfield :: Matrix, direction :: Matrix, repulsion :: Real, long :: Real)
+function potentialJl!(Afield :: Matrix, Bfield :: Matrix, direction :: Matrix, Apot :: Matrix, Bpot :: Matrix, repulsion :: Real, long :: Real)
     d1, d2 = size(Afield)
 
     # is the anisotropic molecule
-
-    Apot = zeros(Float64, d1, d2)
-    Bpot = zeros(Float64, d1, d2)
-
     Area = area(direction, long)
 
     selfRepulsion = 1*repulsion # making this lower than repulsion allows for neighbors to have relative potential, so increases the chance that the hydrophobe will flow.
@@ -103,7 +99,6 @@ function potential(Afield :: Matrix, Bfield :: Matrix, direction :: Matrix, repu
                                         fma(Bfield[i,east    ], a_ij.s3, Bfield[i,j]))))))));
         end
     end
-    return (Apot,Bpot)
 end
 
 fma(a, b, c) = a * b + c

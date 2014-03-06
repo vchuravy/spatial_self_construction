@@ -2,12 +2,8 @@
 # Laplacian
 ###
 
-using NumericExtensions
-
-function LaPlacian(Ap :: Matrix)
+function LaPlacianJl!(Ap :: Matrix, A_lap :: Matrix)
     d1, d2 = size(Ap)
-
-    A_lap = zeros(Float64, d1, d2)
 
     for j in 1:d2
         for i in 1:d1
@@ -30,5 +26,4 @@ function LaPlacian(Ap :: Matrix)
                                     Ap[i    , east] / 8 ;
         end
     end
-    return A_lap
 end
