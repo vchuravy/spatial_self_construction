@@ -14,10 +14,10 @@ const cl = OpenCL
 
 include("config.jl")
 include("drawcircle.jl")
-#include("potential.jl")
-#include("diffusion.jl")
-#include("laplacian.jl")
-#include("align.jl")
+include("potential.jl")
+include("diffusion.jl")
+include("laplacian.jl")
+include("align.jl")
 include("cl/potentialCL.jl")
 include("cl/diffusionCL.jl")
 include("cl/laplacianCL.jl")
@@ -36,7 +36,7 @@ function main(config=Dict();enableVis = false, enableDirFieldVis = false, fileNa
 ###
 # Prepare GPU
 ###
-const CL64BIT, USECL = try
+const P64BIT, USECL = try
         device, ctx, queue = cl.create_compute_context()
         if "cl_khr_fp64" in cl.info(device, :extensions)
             (true, true)
@@ -47,7 +47,8 @@ const CL64BIT, USECL = try
             (false, true)
         end
     catch
-        (false, false)
+        warn("OpenCL is not supported falling back to Julia computation")
+        (true, false)
     end
 
     ###
@@ -63,11 +64,11 @@ const CL64BIT, USECL = try
         @everywhere using PyPlot
     end
 
-    simulation(enableVis, enableDirFieldVis, fileName, loadTime, USECL, CL64BIT, CL64BIT ? Float64 : Float32, debug, config, guiproc)
+    simulation(enableVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, debug, config, guiproc)
 
 end
 
-function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, USECL, CL64BIT, :: Type{T}, testCL :: Bool, config :: Dict, guiproc :: Int)
+function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, USECL, :: Type{T}, testCL :: Bool, config :: Dict, guiproc :: Int)
 # initialize membrane fields
 Afield = zeros(T, fieldResY, fieldResX)
 Mfield = zeros(T, fieldResY, fieldResX)
@@ -215,6 +216,7 @@ p = Progress(length(tx), 1)
 meanMField = mean(Mfield)
 meanAField = mean(Afield)
 
+if USECL
 ###
 # CL prepare programs.
 device, ctx, queue = cl.create_compute_context()
@@ -249,7 +251,9 @@ copy!(target, source) = cl.copy!(queue, target, source)
 read(source) = cl.read(queue, source)
 
 create() = cl.Buffer(T, ctx, :rw, fieldResX * fieldResY)
-
+else
+    error("Pure Julia is currently not supported")
+end
 
 # create temp arrays
 buff_mpot1 = create()
