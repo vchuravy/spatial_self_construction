@@ -97,10 +97,10 @@ const alignKernel = "
 function alignCL!{T <: FloatingPoint}(
     a_buff :: Buffer{T}, b_buff :: Buffer{T},
     out_buff :: Buffer{T},
-    attraction :: T, step :: T, d1 :: Int64, d2 :: Int64,
+    attraction :: Real, step :: Real, d1 :: Int64, d2 :: Int64,
     ctx :: Context, queue :: CmdQueue, program :: Program)
 
     k = cl.Kernel(program, "align")
 
-    cl.call(queue, k, (d1,d2), nothing, a_buff, b_buff, out_buff, int32(d1), int32(d2), attraction, step)
+    cl.call(queue, k, (d1,d2), nothing, a_buff, b_buff, out_buff, int32(d1), int32(d2), convert(T, attraction), convert(T, step))
 end

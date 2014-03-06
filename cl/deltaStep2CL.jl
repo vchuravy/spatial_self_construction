@@ -39,10 +39,10 @@ const delta2Kernel = "
 function delta2CL!{T <: FloatingPoint}(
     delta_buff :: Buffer{T}, af_buff :: Buffer{T}, bf_buff :: Buffer{T}, lap_buff :: Buffer{T},
     out_buff :: Buffer{T},
-    decay :: T, d1 :: Int64, d2 :: Int64,
+    decay :: Real, d1 :: Int64, d2 :: Int64,
     ctx :: Context, queue :: CmdQueue, program :: Program)
 
     k = cl.Kernel(program, "delta2")
 
-    cl.call(queue, k, (d1,d2), nothing, delta_buff, af_buff, bf_buff, lap_buff, out_buff, int32(d2), decay)
+    cl.call(queue, k, (d1,d2), nothing, delta_buff, af_buff, bf_buff, lap_buff, out_buff, int32(d2), convert(T, decay))
 end

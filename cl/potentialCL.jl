@@ -130,7 +130,7 @@ const potentialKernel = "
 function potentialCL!{T <: FloatingPoint}(
     a_buff :: Buffer{T}, b_buff :: Buffer{T}, d_buff :: Buffer{T},
     aout_buff :: Buffer{T}, bout_buff :: Buffer{T},
-    repulsion :: T, long :: T, d1 :: Int64, d2 :: Int64,
+    repulsion :: Real, long :: Real, d1 :: Int64, d2 :: Int64,
     ctx :: Context, queue :: CmdQueue, program :: Program)
 
     area_buff = cl.Buffer(T, ctx, :rw, d1 * d2 * 4)
@@ -139,7 +139,7 @@ function potentialCL!{T <: FloatingPoint}(
     k_a = cl.Kernel(program, "area")
 
     short = one(T)
-    cl.call(queue, k_a, d1*d2, nothing, d_buff, area_buff, long, short)
+    cl.call(queue, k_a, d1*d2, nothing, d_buff, area_buff, convert(T, long), short)
 
-    cl.call(queue, k_p, (d1,d2), nothing, a_buff, b_buff, area_buff, aout_buff, bout_buff, int32(d1), int32(d2), repulsion)
+    cl.call(queue, k_p, (d1,d2), nothing, a_buff, b_buff, area_buff, aout_buff, bout_buff, int32(d1), int32(d2), convert(T, repulsion))
 end
