@@ -45,11 +45,24 @@ const CL64BIT =
         false
     end
 
-    simulation(enableVis, enableDirFieldVis, fileName, loadTime, device, ctx, queue, CL64BIT, CL64BIT ? Float64 : Float32, debug, config)
+    ###
+    # Prepare GUI
+    ###
+
+    guiproc = if enableVis && (length(procs()) <= 1)
+        first(addprocs(1))
+    else
+        last(procs())
+    end
+    if enableVis
+        @everywhere using PyPlot
+    end
+
+    simulation(enableVis, enableDirFieldVis, fileName, loadTime, device, ctx, queue, CL64BIT, CL64BIT ? Float64 : Float32, debug, config, guiproc)
 
 end
 
-function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, device, ctx, queue, CL64BIT, :: Type{T}, testCL :: Bool, config :: Dict)
+function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, device, ctx, queue, CL64BIT, :: Type{T}, testCL :: Bool, config :: Dict, guiproc :: Int)
 # initialize membrane fields
 Afield = zeros(T, fieldResY, fieldResX)
 Mfield = zeros(T, fieldResY, fieldResX)
@@ -411,6 +424,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
 
 
     if enableVis && (t % visInterval == 0)
+    @spawnat guiproc begin
       hold(false)
       # Timeseries plot
       subplot(241)
@@ -452,6 +466,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
         plt.quiver([1:fieldResY], [1:fieldResX], U, V, linewidth=1.5, headwidth = 1.5)
       end
       yield()
+    end
     end
 
     t += stepIntegration
