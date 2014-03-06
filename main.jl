@@ -237,6 +237,7 @@ calcRow!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, 
 laplacian!(buff_in, buff_out) = laplacianCL!(buff_in, buff_out, fieldResY, fieldResX, ctx, queue, laplacianProgram )
 
 copy!(target, source) = cl.copy!(queue, target, source)
+read(source) = cl.read(queue, source)
 
 
 #create buffers on device
@@ -419,8 +420,8 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     Mvec[iround(t/stepIntegration)] = meanMField
     Wvec[iround(t/stepIntegration)] = mean(Wfield)
     if enableVis
-      DAvec[iround(t/stepIntegration)] = sumabs(cl.read(queue, buff_dA))
-      DMvec[iround(t/stepIntegration)] = sumabs(cl.read(queue, buff_dM))
+      DAvec[iround(t/stepIntegration)] = sumabs(read(buff_dA))
+      DMvec[iround(t/stepIntegration)] = sumabs(read(buff_dM))
     end
 
     if t in tStoreFields
@@ -428,7 +429,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
       history_F[:, :, iHistory] = Ffield
       history_T[:, :, iHistory] = Tfield
       history_M[:, :, iHistory] = Mfield
-      history_M_pot[:, :, iHistory] = cl.read(queue, buff_mpot)
+      history_M_pot[:, :, iHistory] = read(buff_mpot)
       history_W[:, :, iHistory] = Wfield
       history_dir[:, :, iHistory] = directionfield
       iHistory += 1
