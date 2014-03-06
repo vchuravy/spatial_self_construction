@@ -239,39 +239,39 @@ laplacian!(buff_in, buff_out) = laplacianCL!(buff_in, buff_out, fieldResY, field
 copy!(target, source) = cl.copy!(queue, target, source)
 read(source) = cl.read(queue, source)
 
+create() = cl.Buffer(T, ctx, :rw, fieldResX * fieldResY)
 
-#create buffers on device
-bufferSize = fieldResX * fieldResY
 
-buff_mpot1 = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_wpot = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_mpot2 = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_apot = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_mpot = cl.Buffer(T, ctx, :rw, bufferSize)
+# create temp arrays
+buff_mpot1 = create()
+buff_wpot = create()
+buff_mpot2 = create()
+buff_apot = create()
+buff_mpot = create()
 
-buff_mfield = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_wfield = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_afield = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_dfield = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_ndfield = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_ffield = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_mfield = create()
+buff_wfield = create()
+buff_afield = create()
+buff_dfield = create()
+buff_ndfield = create()
+buff_ffield = create()
 
-buff_wlap = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_alap = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_mlap = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_flap = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_wlap = create()
+buff_alap = create()
+buff_mlap = create()
+buff_flap = create()
 
-buff_row1 = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_row2 = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_row3 = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_row4 = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_row5 = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_row6 = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_row1 = create()
+buff_row2 = create()
+buff_row3 = create()
+buff_row4 = create()
+buff_row5 = create()
+buff_row6 = create()
 
-buff_dW = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_dA = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_dM = cl.Buffer(T, ctx, :rw, bufferSize)
-buff_dF = cl.Buffer(T, ctx, :rw, bufferSize)
+buff_dW = create()
+buff_dA = create()
+buff_dM = create()
+buff_dF = create()
 
 
 # Make sure that the fields are in the correct DataFormat
