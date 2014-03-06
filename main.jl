@@ -7,6 +7,8 @@ using ProgressMeter
 using Datetime
 using PyPlot
 import NumericExtensions.sumabs
+import NumericExtensions
+const ne = NumericExtensions
 import OpenCL
 const cl = OpenCL
 
@@ -34,15 +36,18 @@ function main(config=Dict();enableVis = false, enableDirFieldVis = false, fileNa
 ###
 # Prepare GPU
 ###
-device, ctx, queue = cl.create_compute_context()
-const CL64BIT =
-    if "cl_khr_fp64" in cl.info(device, :extensions)
-         true
-    elseif "cl_amd_fp64" in cl.info(device, :extensions)
-        true
-    else
-        warn("No Float64 support.")
-        false
+const CL64BIT, USECL = try
+        device, ctx, queue = cl.create_compute_context()
+        if "cl_khr_fp64" in cl.info(device, :extensions)
+            (true, true)
+        elseif "cl_amd_fp64" in cl.info(device, :extensions)
+            (true, true)
+        else
+            warn("No Float64 support.")
+            (false, true)
+        end
+    catch
+        (false, false)
     end
 
     ###
@@ -58,11 +63,11 @@ const CL64BIT =
         @everywhere using PyPlot
     end
 
-    simulation(enableVis, enableDirFieldVis, fileName, loadTime, device, ctx, queue, CL64BIT, CL64BIT ? Float64 : Float32, debug, config, guiproc)
+    simulation(enableVis, enableDirFieldVis, fileName, loadTime, USECL, CL64BIT, CL64BIT ? Float64 : Float32, debug, config, guiproc)
 
 end
 
-function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, device, ctx, queue, CL64BIT, :: Type{T}, testCL :: Bool, config :: Dict, guiproc :: Int)
+function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, USECL, CL64BIT, :: Type{T}, testCL :: Bool, config :: Dict, guiproc :: Int)
 # initialize membrane fields
 Afield = zeros(T, fieldResY, fieldResX)
 Mfield = zeros(T, fieldResY, fieldResX)
@@ -212,6 +217,7 @@ meanAField = mean(Afield)
 
 ###
 # CL prepare programs.
+device, ctx, queue = cl.create_compute_context()
 
 potentialProgram = cl.Program(ctx, source=getPotentialKernel(T)) |> cl.build!
 diffusionProgram = cl.Program(ctx, source=getDiffusionKernel(T)) |> cl.build!
@@ -226,7 +232,7 @@ laplacianProgram = cl.Program(ctx, source=getLaplacianKernel(T)) |> cl.build!
 ###
 # Define clfunctions
 # IMPORTANT: Julia convention is func!(X, Y) overrides X with the operation func(X,Y)
-# For the OCL functionts the target is always LAST.
+# For the OCL functions the target is always the LAST BUFFER.
 
 diffusion!(buff_Xfield, buff_Xpot, buff_Xlap) = diffusionCL!(buff_Xfield, buff_Xpot, buff_Xlap, fieldResY, fieldResX, ctx, queue, diffusionProgram)
 smul!(X, buff_in, buff_out) =  smulCL!(X, buff_in, buff_out, fieldResY, fieldResX, ctx, queue, smulProgram)
@@ -235,7 +241,9 @@ potential!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsio
 align!(buff_Xfield, buff_Yfield, buff_OUTfield) = alignCL!(buff_Xfield, buff_Yfield, buff_OUTfield, attractionRate, stepIntegration, fieldResY, fieldResX, ctx, queue, alignProgram)
 calcRow!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w) = calcRowCL!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w, fieldResY, fieldResX, ctx, queue, rowProgram)
 laplacian!(buff_in, buff_out) = laplacianCL!(buff_in, buff_out, fieldResY, fieldResX, ctx, queue, laplacianProgram )
+delta!(buff1, buff2, buff3, buff4, buff5, buff6, buff_out, x1, x2, x3, x4, x5, x6) = deltaCL!(buff1, buff2, buff3, buff4, buff5, buff6, buff_out, x1, x2, x3, x4, x5, x6, fieldResY, fieldResX, ctx, queue, deltaProgram)
 
+# Standard Julia Convention target first
 copy!(target, source) = cl.copy!(queue, target, source)
 read(source) = cl.read(queue, source)
 
@@ -355,27 +363,24 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     # Calculate dA
     ##
 
-    deltaCL!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dA,
-            fsm(a12, a11, kf1), fsm(a11, a12, kb1), fsm(a22, a21, kf2), fsm(a21, a22, kb2), fsm(a32, a31, kf3), fsm(a31, a32, kb3),
-            fieldResY, fieldResX, ctx, queue, deltaProgram)
+    delta!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dA,
+            fsm(a12, a11, kf1), fsm(a11, a12, kb1), fsm(a22, a21, kf2), fsm(a21, a22, kb2), fsm(a32, a31, kf3), fsm(a31, a32, kb3))
     delta2CL!(buff_dA, buff_mfield, buff_afield, buff_alap, buff_dA, decayA, fieldResY, fieldResX, ctx, queue, delta2Program)
 
     ##
     # Calculate dM
     ##
 
-    deltaCL!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dM,
-            fsm(m12, m11, kf1), fsm(m11, m12, kb1), fsm(m22, m21, kf2), fsm(m21, m22, kb2), fsm(m32, m31, kf3), fsm(m31, m32, kb3),
-            fieldResY, fieldResX, ctx, queue, deltaProgram)
+    delta!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dM,
+            fsm(m12, m11, kf1), fsm(m11, m12, kb1), fsm(m22, m21, kf2), fsm(m21, m22, kb2), fsm(m32, m31, kf3), fsm(m31, m32, kb3))
     delta2CL!(buff_dM, buff_afield, buff_mfield, buff_mlap, buff_dM, decayM, fieldResY, fieldResX, ctx, queue, delta2Program)
 
     ##
     # Calculate dW
     ##
 
-    deltaCL!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dW,
-            fsm(w12, w11, kf1), fsm(w11, w12, kb1), fsm(w22, w21, kf2), fsm(w21, w22, kb2), fsm(w32, w31, kf3), fsm(w31, w32, kb3),
-            fieldResY, fieldResX, ctx, queue, deltaProgram)
+    delta!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dW,
+            fsm(w12, w11, kf1), fsm(w11, w12, kb1), fsm(w22, w21, kf2), fsm(w21, w22, kb2), fsm(w32, w31, kf3), fsm(w31, w32, kb3))
 
     add!(buff_wlap, buff_dW, buff_dW)
 
@@ -383,9 +388,8 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     # Calculate dF
     ##
 
-    deltaCL!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dF,
-            fsm(f12, f11, kf1), fsm(f11, f12, kb1), fsm(f22, f21, kf2), fsm(f21, f22, kb2), fsm(f32, f31, kf3), fsm(f31, f32, kb3),
-            fieldResY, fieldResX, ctx, queue, deltaProgram)
+    delta!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dF,
+            fsm(f12, f11, kf1), fsm(f11, f12, kb1), fsm(f22, f21, kf2), fsm(f21, f22, kb2), fsm(f32, f31, kf3), fsm(f31, f32, kb3))
 
     add!(buff_flap, buff_dF, buff_dF)
 
