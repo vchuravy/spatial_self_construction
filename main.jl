@@ -260,14 +260,19 @@ laplacianProgram = cl.Program(ctx, source=getLaplacianKernel(T)) |> cl.build!
 # For the OCL functions the target is always the LAST BUFFER.
 
 diffusion!(buff_Xfield, buff_Xpot, buff_Xlap) = diffusionCL!(buff_Xfield, buff_Xpot, buff_Xlap, fieldResY, fieldResX, ctx, queue, diffusionProgram)
-smul!(X, buff_in, buff_out) =  smulCL!(X, buff_in, buff_out, fieldResY, fieldResX, ctx, queue, smulProgram)
-add!(buff_in1, buff_in2, buff_out) = addCL!(buff_in1, buff_in2, buff_out, fieldResY, fieldResX, ctx, queue, addProgram)
 potential!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion) = potentialCL!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion, long_direction, fieldResY, fieldResX, ctx, queue, potentialProgram)
 align!(buff_Xfield, buff_Yfield, buff_OUTfield) = alignCL!(buff_Xfield, buff_Yfield, buff_OUTfield, attractionRate, stepIntegration, fieldResY, fieldResX, ctx, queue, alignProgram)
 calcRow!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w) = calcRowCL!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w, fieldResY, fieldResX, ctx, queue, rowProgram)
 laplacian!(buff_in, buff_out) = laplacianCL!(buff_in, buff_out, fieldResY, fieldResX, ctx, queue, laplacianProgram )
 delta!(buff1, buff2, buff3, buff4, buff5, buff6, buff_out, x1, x2, x3, x4, x5, x6) = deltaCL!(buff1, buff2, buff3, buff4, buff5, buff6, buff_out, x1, x2, x3, x4, x5, x6, fieldResY, fieldResX, ctx, queue, deltaProgram)
 delta2!(buff_D, buff_Xfield, buff_Yfield, buff_L,buff_out, decay) = delta2CL!(buff_D, buff_Xfield, buff_Yfield, buff_L, buff_out, decay, fieldResY, fieldResX, ctx, queue, delta2Program)
+
+smul!(X, buff_in, buff_out) =  smulCL!(X, buff_in, buff_out, fieldResY, fieldResX, ctx, queue, smulProgram)
+add!(buff_in1, buff_in2, buff_out) = addCL!(buff_in1, buff_in2, buff_out, fieldResY, fieldResX, ctx, queue, addProgram)
+
+#Julia style smul and add
+smul!(buff, X) =  smulCL!(X, buff, buff, fieldResY, fieldResX, ctx, queue, smulProgram)
+add!(buff_out, buff_in) = addCL!(buff_out, buff_in, buff_out, fieldResY, fieldResX, ctx, queue, addProgram)
 
 # Standard Julia Convention target first
 copy!(target, source) = cl.copy!(queue, target, source)
@@ -276,12 +281,16 @@ read(source) = cl.read(queue, source)
 create() = cl.Buffer(T, ctx, :rw, fieldResX * fieldResY)
 else
     diffusion!(buff_Xfield, buff_Xpot, buff_Xlap) = diffusionJl!(buff_Xfield, buff_Xpot, buff_Xlap)
-    smul!(X, buff_in, buff_out) = nm.multiply!(copy!(bouff_out, buff_in), X)
-    add!(in1, in2, out) = nm.add!(copy!(out, in1), in2)
     potential!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion) = potentialJl!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion, long_direction)
     align!(buff_Xfield, buff_Yfield, buff_OUTfield) = alignJl!(buff_Xfield, buff_Yfield, buff_OUTfield, attractionRate, stepIntegration)
     laplacian!(buff_in, buff_out) = LaPlacianJl!(buff_in, buff_out)
 
+    smul!(X, buff_in, buff_out) = nm.multiply!(copy!(bouff_out, buff_in), X)
+    add!(in1, in2, out) = nm.add!(copy!(out, in1), in2)
+
+    #Julia style smul and add
+    smul!(out, x) = nm.multiply!(out, X)
+    add!(out, in2) = nm.add!(out, in2)
 
     read(source) = copy(source)
     copy!(target, source) = Base.copy!(target, source)
@@ -370,19 +379,19 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     ###
 
     diffusion!(buff_mfield, buff_mpot, buff_mlap)
-    smul!(diffM, buff_mlap, buff_mlap)
+    smul!(buff_mlap, diffM)
 
     diffusion!(buff_wfield, buff_wpot, buff_wlap)
-    smul!(diffW, buff_wlap, buff_wlap)
+    smul!(buff_wlap, diffW)
 
     diffusion!(buff_afield, buff_apot, buff_alap)
-    smul!(diffA, buff_alap, buff_alap)
+    smul!(buff_alap, diffA)
 
 
     # Laplacian for diffusion
     # Todo calculate in on GPU to be coherent and to minimize data transfers.
     laplacian!(buff_ffield, buff_flap)
-    smul!(diffF, buff_flap, buff_flap)
+    smul!(buff_flap, diffF)
 
     # update direction field based on alignment
     align!(buff_mfield, buff_dfield, buff_ndfield)
@@ -422,7 +431,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     delta!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dW,
             fsm(w12, w11, kf1), fsm(w11, w12, kb1), fsm(w22, w21, kf2), fsm(w21, w22, kb2), fsm(w32, w31, kf3), fsm(w31, w32, kb3))
 
-    add!(buff_wlap, buff_dW, buff_dW)
+    add!(buff_dW, buff_wlap)
 
     ##
     # Calculate dF
@@ -431,7 +440,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     delta!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dF,
             fsm(f12, f11, kf1), fsm(f11, f12, kb1), fsm(f22, f21, kf2), fsm(f21, f22, kb2), fsm(f32, f31, kf3), fsm(f31, f32, kb3))
 
-    add!(buff_flap, buff_dF, buff_dF)
+    add!(buff_dF, buff_flap)
 
     copy!(dF, buff_dF)
 
@@ -440,19 +449,19 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     dT = 0
 
     # update values
-    smul!(stepIntegration, buff_dA, buff_dA)
-    add!(buff_afield, buff_dA, buff_afield)
+    smul!(buff_dA, stepIntegration)
+    add!(buff_afield, buff_dA)
     copy!(Afield, buff_afield)
 
     Ffield += dF * stepIntegration
     #Tfield += dT * stepIntegration
 
-    smul!(stepIntegration, buff_dM, buff_dM)
-    add!(buff_mfield, buff_dM, buff_mfield)
+    smul!(buff_dM, stepIntegration)
+    add!(buff_mfield, buff_dM)
     copy!(Mfield, buff_mfield)
 
-    smul!(stepIntegration, buff_dW, buff_dW)
-    add!(buff_wfield, buff_dW, buff_wfield)
+    smul!(buff_dW, stepIntegration)
+    add!(buff_wfield, buff_dW)
     copy!(Wfield, buff_wfield)
 
     #save values for visualization
