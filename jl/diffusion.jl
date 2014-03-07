@@ -24,13 +24,13 @@ function flow(Pot :: Matrix)
             psw = Pot[south,west] - p;
             psj = Pot[south,j   ] - p;
             pse = Pot[south,east] - p;
-            piw = Pot[i    ,west] - p;
             pie = Pot[i    ,east] - p;
-            pnw = Pot[north,west] - p;
-            pnj = Pot[north,j   ] - p;
             pne = Pot[north,east] - p;
+            pnj = Pot[north,j   ] - p;
+            pnw = Pot[north,west] - p;
+            piw = Pot[i    ,west] - p;
 
-            ge = Number8(psw, psj, pse, piw, pie, pnw, pnj, pne)
+            ge = Number8(psw, psj, pse, pie, pne, pnj, pnw, piw)
 
             ge = -1 * ge / (1-exp(ge))
 
@@ -38,7 +38,7 @@ function flow(Pot :: Matrix)
             # Remove NaN
             ###
 
-            ge_wo_na = Number8([isnan(x) ? 1.0 : x for x in toArray(ge)]...)
+            ge_wo_na = Number8([isnan(x) ? 1.0 : x for x in ge.array])
 
             ###
             # Normalize by eight.
@@ -50,8 +50,8 @@ function flow(Pot :: Matrix)
     return Flow
 end
 
-function diffusionJl!(conc :: Matrix, pot :: Matrix, p_move :: Matrix) #concentration and direction
-    d1, d2 = size(conc)
+function diffusionJl!(Conc :: Matrix, pot :: Matrix, p_move :: Matrix) #concentration and direction
+    d1, d2 = size(Conc)
 
     Flow = flow(pot)
 
@@ -67,20 +67,20 @@ function diffusionJl!(conc :: Matrix, pot :: Matrix, p_move :: Matrix) #concentr
             # Get the flow out of cell ij
             ###
 
-            outflow =  conc[i,j] * sum(Flow[i,j])
+            outflow =  Conc[i,j] * sum(Flow[i,j])
 
             ###
             # Calculate the inflow based on the outflow from other cells into this on.
             ###
 
-            inflow  =  conc[south, west] * Flow[south, west].s7 +
-                       conc[south, j   ] * Flow[south, j   ].s6 +
-                       conc[south, east] * Flow[south, east].s5 +
-                       conc[i    , west] * Flow[i    , west].s4 +
-                       conc[i    , east] * Flow[i    , east].s3 +
-                       conc[north, east] * Flow[north, east].s0 +
-                       conc[north, j   ] * Flow[north, j   ].s1 +
-                       conc[north, west] * Flow[north, west].s2 ;
+            inflow  =   Conc[south, west] * Flow[south, west].s4 +
+                        Conc[south, j   ] * Flow[south, j   ].s5 +
+                        Conc[south, east] * Flow[south, east].s6 +
+                        Conc[i    , east] * Flow[i    , east].s7 +
+                        Conc[north, east] * Flow[north, east].s0 +
+                        Conc[north, j   ] * Flow[north, j   ].s1 +
+                        Conc[north, west] * Flow[north, west].s2 +
+                        Conc[i    , west] * Flow[i    , west].s3 ;
 
             ###
             # Inflow - outflow = change

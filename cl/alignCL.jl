@@ -87,7 +87,6 @@ function getAlignKernel{T <: FloatingPoint}(:: Type{T})
 
         Newdir(i,j) = fmod(ndir,PI);
 
-
     }
     "
 end

@@ -2,10 +2,10 @@
 # transforms directionality
 ###
 
-using NumericExtensions
+require("jl/ocl_utils.jl")
 
-function alignJl!(conc :: Matrix, dir :: Matrix, newdir :: Matrix, attraction :: Real, step :: Real) #concentration and direction
-    d1,d2 = size(conc)
+function alignJl!(Conc :: Matrix, Dir :: Matrix, Newdir :: Matrix, attraction :: Real, step :: Real) #concentration and direction
+    d1,d2 = size(Conc)
 
     diff = zeros(Float64, 3,3)
     tmp = zeros(Float64, 3,3)
@@ -19,46 +19,43 @@ function alignJl!(conc :: Matrix, dir :: Matrix, newdir :: Matrix, attraction ::
             north = i == d1 ? 1  : i+1
             south = i == 1  ? d1 : i-1
 
-            direction = dir[i, j]
+            # Getting the data and storing it in two eight vectors
+            direction = Dir[i, j];
 
-            diff[3,1] = direction - dir[north,west]
-            diff[3,2] = direction - dir[north,j   ]
-            diff[3,3] = direction - dir[north,east]
-            diff[2,1] = direction - dir[i,west    ]
+            s0 = Conc[south,west];
+            s1 = Conc[south,j   ];
+            s2 = Conc[south,east];
+            s3 = Conc[i    ,east];
+            s4 = Conc[north,east];
+            s5 = Conc[north,j   ];
+            s6 = Conc[north,west];
+            s7 = Conc[i    ,west];
 
-            diff[2,2] = 0
+            conc = Number8(s0, s1, s2, s3, s4, s5, s6, s7)
 
-            diff[2,3] = direction - dir[i,east    ]
-            diff[1,1] = direction - dir[south,west]
-            diff[1,2] = direction - dir[south,j   ]
-            diff[1,3] = direction - dir[south,east]
+            s0 = Dir[south,west];
+            s1 = Dir[south,j   ];
+            s2 = Dir[south,east];
+            s3 = Dir[i    ,east];
+            s4 = Dir[north,east];
+            s5 = Dir[north,j   ];
+            s6 = Dir[north,west];
+            s7 = Dir[i    ,west];
 
-            diff = map!(ModFun(), diff, diff, pi)
+            dir = Number8(s0, s1, s2, s3, s4, s5, s6, s7)
 
-            potential = map!(Multiply(), potential, diff, 2)
-            potential = map!(SinFun(), potential, potential)
-            potential = negate!(potential)
+            # Calculate
 
-            #concentration = conc[i,j]
+            diff = direction - dir;
+            diff = fmod(diff, PI);
+            diff = -sin(2 * diff);
 
-            dtheta = zero(Float64)
+            dtheta = sum(conc * diff);
 
-            dtheta += conc[north,west] * potential[3, 1]
-            dtheta += conc[north,j]    * potential[3, 2]
-            dtheta += conc[north,east] * potential[3, 3]
-            dtheta += conc[i,west]     * potential[2, 1]
+            dtheta = attraction * dtheta / 8;
+            ndir = direction + dtheta * step;
 
-            dtheta += conc[i,east]     * potential[2, 3]
-            dtheta += conc[south,west] * potential[1, 1]
-            dtheta += conc[south,j]    * potential[1, 2]
-            dtheta += conc[south,east] * potential[1, 3]
-
-
-            # update direction for cell
-            dtheta = attraction * dtheta / 8 # multiply by attraction constant
-            ndir = dir[i,j] + dtheta * step # update direction with stepsize
-
-            newdir[i,j] = mod(ndir, pi)
+            Newdir[i,j] = fmod(ndir,PI);
         end
     end
 end

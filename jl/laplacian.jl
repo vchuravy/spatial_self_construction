@@ -16,14 +16,14 @@ function LaPlacianJl!(Ap :: Matrix, A_lap :: Matrix)
             #8-neighbor
             #inflow
 
-            A_lap[i,j] = -Ap[i,j] + Ap[north, east] / 8 +
-                                    Ap[north, j   ] / 8 +
-                                    Ap[north, west] / 8 +
-                                    Ap[i    , west] / 8 +
-                                    Ap[south, west] / 8 +
-                                    Ap[south, j   ] / 8 +
-                                    Ap[south, east] / 8 +
-                                    Ap[i    , east] / 8 ;
+            A_lap[i,j] = -Ap[i,j] +(Ap[north, east] +
+                                    Ap[north, j   ] +
+                                    Ap[north, west] +
+                                    Ap[i    , west] +
+                                    Ap[south, west] +
+                                    Ap[south, j   ] +
+                                    Ap[south, east] +
+                                    Ap[i    , east]) / 8 ;
         end
     end
 end
