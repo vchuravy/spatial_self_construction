@@ -3,6 +3,13 @@ A Julia implementation of the autopoesis framework.
 Install Julia from http://julialang.org/ this programm has been tested with v0.3.0-prerelease ether build it from source https://github.com/JuliaLang/julia or download a package for your platform.
 
 ### Mac OS X
+#### Mac > 10.7
+ - Download the 0.3-prerelease from [http://julialang.org]
+ - Install it
+ - rename the installed Application to Julia-0.3.0
+ - modify your path (in .bash_profile) to include /Applications/Julia-0.3.0.app/Contents/Resources/julia/bin
+ - test if the command julia works on a terminal.
+
 
 The other option is to install Julia via homebrew [http://brew.sh/]
 After installing homebrew follow the instructions from [https://github.com/staticfloat/homebrew-julia]
@@ -24,6 +31,7 @@ Then install the dependencies:
  - ProgressMeter
  - Datetime
  - PyPlot
+ - OpenCL
 
 ```julia
 Pkg.update()
@@ -44,6 +52,12 @@ julia -L main.jl -e 'main()'
 ```julia
 require("/full/path/to/autopoesis/main.jl")
 main()
+```
+
+#### Load directly, but open a REPL
+```bash
+julia -L main.jl
+>> main()
 ```
 
 ### Visualization
