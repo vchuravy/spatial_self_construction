@@ -5,7 +5,6 @@
 using MAT
 using ProgressMeter
 using Datetime
-using PyPlot
 import NumericExtensions.sumabs
 import NumericExtensions
 const ne = NumericExtensions
@@ -39,29 +38,35 @@ function determineCapabilities(allow32Bit = false)
             ctx = cl.Context([device])
             queue = CmdQueue(ctx)
             return (true, true, ctx, queue)
+        else 
+            warn("No OpenCL device with Float64 support found!")
+            if allow32Bit
+                warn("Searching for device with Float32 support.")
+                device, ctx, queue = cl.create_compute_context()
+                return (false, true, ctx, queue)
+            else
+                throw(Exception())
+            end
         end
-        warn("No OpenCL device with Float64 support found!")
-        if allow32Bit
-            warn("Searching for device with Float32 support.")
-            device, ctx, queue = cl.create_compute_context()
-            return (false, true, ctx, queue)
-        else
-            throw(Exception())
-        end
-    catch
+    catch e
+        println("Got exception: $e")
         warn("OpenCL is not supported falling back to Julia computation")
         return (true, false, nothing, nothing)
     end
 end
 
 function deviceWith64Bit()
+    amd = "cl_amd_fp64"
+    khr = "cl_khr_fp64"
     for device in cl.devices(:gpu)
-        if "cl_khr_fp64" in cl.info(device, :extensions) || "cl_amd_fp64" in cl.info(device, :extensions)
+        ext = cl.info(device, :extensions)
+        if (khr in ext) || (amd in ext)
             return device
         end
     end
-    for device in c.devices(:cpu)
-        if "cl_khr_fp64" in cl.info(device, :extensions) || "cl_amd_fp64" in cl.info(device, :extensions)
+    for device in cl.devices(:cpu)
+        ext = cl.info(device, :extensions)
+        if (khr in ext) || (amd in ext)
             warn("Only found 64bit support on the CPU")
             return device
         end
