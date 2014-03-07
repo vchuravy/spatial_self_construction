@@ -11,3 +11,5 @@ function calcRowJl!(
       end
     end
 end
+
+pow(x, y) = x ^ y

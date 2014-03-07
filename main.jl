@@ -18,6 +18,8 @@ include("jl/diffusion.jl")
 include("jl/laplacian.jl")
 include("jl/align.jl")
 include("jl/calcRow.jl")
+include("jl/delta.jl")
+include("jl/deltaStep2.jl")
 include("cl/potentialCL.jl")
 include("cl/diffusionCL.jl")
 include("cl/laplacianCL.jl")
@@ -32,8 +34,11 @@ include("cl/deltaStep2CL.jl")
 # set up initial configuration
 ###
 
-function determineCapabilities(allow32Bit = false)
+function determineCapabilities(allow32Bit = false, forceJuliaImpl = false)
     try
+        if forceJuliaImpl
+            error("forced usage of Julia implementation.")
+        end
         device = deviceWith64Bit()
         if device != nothing
             ctx = cl.Context([device])
@@ -75,12 +80,12 @@ function deviceWith64Bit()
     return nothing
 end
 
-function main(config=Dict(); enableVis :: Bool = false, enableDirFieldVis = false, fileName = "", loadTime = 0, debug = false, allow32Bit = false)
+function main(config=Dict(); enableVis :: Bool = false, enableDirFieldVis = false, fileName = "", loadTime = 0, debug = false, allow32Bit = false, forceJuliaImpl = false)
     useVis = enableVis && ((length(procs()) == 1) || (!(myid() in workers())))
     ###
     # Prepare GPU
     ###
-    const P64BIT, USECL, ctx, queue = determineCapabilities(allow32Bit)
+    const P64BIT, USECL, ctx, queue = determineCapabilities(allow32Bit, forceJuliaImpl)
 
     ###
     # Prepare GUI
@@ -296,19 +301,22 @@ else
     potential!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion) = potentialJl!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion, long_direction)
     align!(buff_Xfield, buff_Yfield, buff_OUTfield) = alignJl!(buff_Xfield, buff_Yfield, buff_OUTfield, attractionRate, stepIntegration)
     laplacian!(buff_in, buff_out) = LaPlacianJl!(buff_in, buff_out)
+    calcRow!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w) = calcRowJl!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w)
+    delta!(buff1, buff2, buff3, buff4, buff5, buff6, buff_out, x1, x2, x3, x4, x5, x6) = deltaJl!(buff1, buff2, buff3, buff4, buff5, buff6, buff_out, x1, x2, x3, x4, x5, x6)
+    delta2!(buff_D, buff_Xfield, buff_Yfield, buff_L,buff_out, decay) = delta2Jl!(buff_D, buff_Xfield, buff_Yfield, buff_L, buff_out, decay)
 
-    smul!(X, buff_in, buff_out) = nm.multiply!(copy!(bouff_out, buff_in), X)
-    add!(in1, in2, out) = nm.add!(copy!(out, in1), in2)
+
+    smul!(X, buff_in, buff_out) = ne.multiply!(copy!(bouff_out, buff_in), X)
+    add!(in1, in2, out) = ne.add!(copy!(out, in1), in2)
 
     #Julia style smul and add
-    smul!(out, x) = nm.multiply!(out, X)
-    add!(out, in2) = nm.add!(out, in2)
+    smul!(out, x) = ne.multiply!(out, x)
+    add!(out, in2) = ne.add!(out, in2)
 
     read(source) = copy(source)
     copy!(target, source) = Base.copy!(target, source)
 
     create() = Array(T, fieldResY, fieldResX)
-    error("Pure Julia is currently not supported")
 end
 
 # create temp arrays
