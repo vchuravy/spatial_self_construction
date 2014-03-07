@@ -32,24 +32,48 @@ include("cl/deltaStep2CL.jl")
 # set up initial configuration
 ###
 
-function main(config=Dict();enableVis = false, enableDirFieldVis = false, fileName = "", loadTime = 0, debug = false)
-###
-# Prepare GPU
-###
-const P64BIT, USECL = try
-        device, ctx, queue = cl.create_compute_context()
-        if "cl_khr_fp64" in cl.info(device, :extensions)
-            (true, true)
-        elseif "cl_amd_fp64" in cl.info(device, :extensions)
-            (true, true)
+function determineCapabilities(allow32Bit = false)
+    try
+        device = deviceWith64Bit()
+        if device != nothing
+            ctx = cl.Context([device])
+            queue = CmdQueue(ctx)
+            return (true, true, ctx, queue)
+        end
+        warn("No OpenCL device with Float64 support found!")
+        if allow32Bit
+            warn("Searching for device with Float32 support.")
+            device, ctx, queue = cl.create_compute_context()
+            return (false, true, ctx, queue)
         else
-            warn("No Float64 support.")
-            (false, true)
+            throw(Exception())
         end
     catch
         warn("OpenCL is not supported falling back to Julia computation")
-        (true, false)
+        return (true, false, nothing, nothing)
     end
+end
+
+function deviceWith64Bit()
+    for device in cl.devices(:gpu)
+        if "cl_khr_fp64" in cl.info(device, :extensions) || "cl_amd_fp64" in cl.info(device, :extensions)
+            return device
+        end
+    end
+    for device in c.devices(:cpu)
+        if "cl_khr_fp64" in cl.info(device, :extensions) || "cl_amd_fp64" in cl.info(device, :extensions)
+            warn("Only found 64bit support on the CPU")
+            return device
+        end
+    end
+    return nothing
+end
+
+function main(config=Dict();enableVis = false, enableDirFieldVis = false, fileName = "", loadTime = 0, debug = false, allow32Bit = false)
+    ###
+    # Prepare GPU
+    ###
+    const P64BIT, USECL, ctx, queue = determineCapabilities(allow32Bit)
 
     ###
     # Prepare GUI
@@ -64,11 +88,11 @@ const P64BIT, USECL = try
         @everywhere using PyPlot
     end
 
-    simulation(enableVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, debug, config, guiproc)
+    simulation(enableVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, debug, config, guiproc, ctx, queue)
 
 end
 
-function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, USECL, :: Type{T}, testCL :: Bool, config :: Dict, guiproc :: Int)
+function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, USECL, :: Type{T}, testCL :: Bool, config :: Dict, guiproc :: Int, ctx, queue)
 # initialize membrane fields
 Afield = zeros(T, fieldResY, fieldResX)
 Mfield = zeros(T, fieldResY, fieldResX)
@@ -219,7 +243,6 @@ meanAField = mean(Afield)
 if USECL
 ###
 # CL prepare programs.
-device, ctx, queue = cl.create_compute_context()
 
 potentialProgram = cl.Program(ctx, source=getPotentialKernel(T)) |> cl.build!
 diffusionProgram = cl.Program(ctx, source=getDiffusionKernel(T)) |> cl.build!
