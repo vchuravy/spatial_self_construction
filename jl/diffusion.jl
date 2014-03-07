@@ -1,7 +1,7 @@
 ###
 #   transforms concs and dirality
 ###
-
+import NumericExtensions.negate!, NumericExtensions.divide!, NumericExtensions.add!, NumericExtensions.exp!
 require("jl/ocl_utils.jl")
 
 function flow(Pot :: Matrix)
@@ -30,21 +30,21 @@ function flow(Pot :: Matrix)
             pnw = Pot[north,west] - p;
             piw = Pot[i    ,west] - p;
 
-            ge = Number8(psw, psj, pse, pie, pne, pnj, pnw, piw)
-
-            ge = -1 * ge / (1-exp(ge))
+            ge = [psw, psj, pse, pie, pne, pnj, pnw, piw]
+            ge2 = [psw, psj, pse, pie, pne, pnj, pnw, piw]
+            ge = negate!(divide!(ge2, add!(negate!(exp!(ge)), 1))) #
 
             ###
             # Remove NaN
             ###
 
-            ge_wo_na = Number8([isnan(x) ? 1.0 : x for x in ge.array])
+            ge_wo_na = Number8([isnan(x) ? 1.0 / 8.0 : x/8.0 for x in ge])
 
             ###
             # Normalize by eight.
             ###
 
-            Flow[i,j] = ge_wo_na / 8.0
+            Flow[i,j] = ge_wo_na
         end
     end
     return Flow

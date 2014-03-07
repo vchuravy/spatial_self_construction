@@ -1,7 +1,7 @@
 ###
 # transforms directionality
 ###
-
+import NumericExtensions.negate!, NumericExtensions.negate!, NumericExtensions.multiply!, NumericExtensions.subtract!, NumericExtensions.add!, NumericExtensions.map1!, NumericExtensions.SinFun, NumericExtensions.ModFun
 require("jl/ocl_utils.jl")
 
 function alignJl!(Conc :: Matrix, Dir :: Matrix, Newdir :: Matrix, attraction :: Real, step :: Real) #concentration and direction
@@ -31,7 +31,7 @@ function alignJl!(Conc :: Matrix, Dir :: Matrix, Newdir :: Matrix, attraction ::
             s6 = Conc[north,west];
             s7 = Conc[i    ,west];
 
-            conc = Number8(s0, s1, s2, s3, s4, s5, s6, s7)
+            conc = [s0, s1, s2, s3, s4, s5, s6, s7]
 
             s0 = Dir[south,west];
             s1 = Dir[south,j   ];
@@ -42,15 +42,15 @@ function alignJl!(Conc :: Matrix, Dir :: Matrix, Newdir :: Matrix, attraction ::
             s6 = Dir[north,west];
             s7 = Dir[i    ,west];
 
-            dir = Number8(s0, s1, s2, s3, s4, s5, s6, s7)
+            dir = [s0, s1, s2, s3, s4, s5, s6, s7]
 
             # Calculate
+            diff = negate!(dir)
+            diff = add!(diff, direction);
+            diff = map1!(ModFun(), diff, PI);
+            diff = negate!(map1!(SinFun(), (multiply!(diff,2))));
 
-            diff = direction - dir;
-            diff = fmod(diff, PI);
-            diff = -sin(2 * diff);
-
-            dtheta = sum(conc * diff);
+            dtheta = sum(multiply!(diff, conc));
 
             dtheta = attraction * dtheta / 8;
             ndir = direction + dtheta * step;

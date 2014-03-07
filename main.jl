@@ -20,6 +20,7 @@ include("jl/align.jl")
 include("jl/calcRow.jl")
 include("jl/delta.jl")
 include("jl/deltaStep2.jl")
+include("jl/area.jl")
 include("cl/potentialCL.jl")
 include("cl/diffusionCL.jl")
 include("cl/laplacianCL.jl")
@@ -29,6 +30,7 @@ include("cl/calcRowCL.jl")
 include("cl/deltaCL.jl")
 include("cl/smulCL.jl")
 include("cl/deltaStep2CL.jl")
+include("cl/areaCL.jl")
 
 ###
 # set up initial configuration
@@ -107,7 +109,7 @@ function main(config=Dict(); enableVis :: Bool = false, enableDirFieldVis = fals
 end
 
 function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, USECL, :: Type{T}, testCL :: Bool, config :: Dict, guiproc :: Int, ctx, queue)
-worker = myid() in workers()
+worker = (length(procs()) > 1) && (myid() in workers())
 
 # initialize membrane fields
 Afield = zeros(T, fieldResY, fieldResX)
@@ -262,6 +264,7 @@ if USECL
 # CL prepare programs.
 
 potentialProgram = cl.Program(ctx, source=getPotentialKernel(T)) |> cl.build!
+areaProgram = cl.Program(ctx, source=getAreaKernel(T)) |> cl.build!
 diffusionProgram = cl.Program(ctx, source=getDiffusionKernel(T)) |> cl.build!
 addProgram = cl.Program(ctx, source=getAddKernel(T)) |> cl.build!
 alignProgram = cl.Program(ctx, source=getAlignKernel(T)) |> cl.build!
@@ -277,7 +280,8 @@ laplacianProgram = cl.Program(ctx, source=getLaplacianKernel(T)) |> cl.build!
 # For the OCL functions the target is always the LAST BUFFER.
 
 diffusion!(buff_Xfield, buff_Xpot, buff_Xlap) = diffusionCL!(buff_Xfield, buff_Xpot, buff_Xlap, fieldResY, fieldResX, ctx, queue, diffusionProgram)
-potential!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion) = potentialCL!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion, long_direction, fieldResY, fieldResX, ctx, queue, potentialProgram)
+potential!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion) = potentialCL!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion, fieldResY, fieldResX, ctx, queue, potentialProgram)
+area!(buff_in, buff_out) = areaCL!(buff_in, buff_out, long_direction, fieldResY, fieldResX, ctx, queue, areaProgram) 
 align!(buff_Xfield, buff_Yfield, buff_OUTfield) = alignCL!(buff_Xfield, buff_Yfield, buff_OUTfield, attractionRate, stepIntegration, fieldResY, fieldResX, ctx, queue, alignProgram)
 calcRow!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w) = calcRowCL!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w, fieldResY, fieldResX, ctx, queue, rowProgram)
 laplacian!(buff_in, buff_out) = laplacianCL!(buff_in, buff_out, fieldResY, fieldResX, ctx, queue, laplacianProgram )
@@ -296,9 +300,11 @@ copy!(target, source) = cl.copy!(queue, target, source)
 read(source) = cl.read(queue, source)
 
 create() = cl.Buffer(T, ctx, :rw, fieldResX * fieldResY)
+create_n4() = cl.Buffer(T, ctx, :rw, fieldResX * fieldResY * 4)
 else
     diffusion!(buff_Xfield, buff_Xpot, buff_Xlap) = diffusionJl!(buff_Xfield, buff_Xpot, buff_Xlap)
-    potential!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion) = potentialJl!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion, long_direction)
+    potential!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion) = potentialJl!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion)
+    area!(buff_in, buff_out) = areaJl!(buff_in, buff_out, long_direction) 
     align!(buff_Xfield, buff_Yfield, buff_OUTfield) = alignJl!(buff_Xfield, buff_Yfield, buff_OUTfield, attractionRate, stepIntegration)
     laplacian!(buff_in, buff_out) = LaPlacianJl!(buff_in, buff_out)
     calcRow!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w) = calcRowJl!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w)
@@ -317,6 +323,7 @@ else
     copy!(target, source) = Base.copy!(target, source)
 
     create() = Array(T, fieldResY, fieldResX)
+    create_n4() = Array(Number4{T}, fieldResY, fieldResX)
 end
 
 # create temp arrays
@@ -353,6 +360,7 @@ buff_dM = create()
 buff_dF = create()
 
 buff_temp = create()
+buff_area = create_n4()
 
 
 # Make sure that the fields are in the correct DataFormat
@@ -393,11 +401,13 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     ###
     # calculate potential based on repulsion
     ###
-    potential!(buff_mfield, buff_wfield, buff_dfield, buff_mpot, buff_wpot, MW_repulsion)
-    potential!(buff_mfield, buff_afield, buff_dfield, buff_mpot1, buff_apot, MA_repulsion)
-    potential!(buff_mfield, buff_mfield, buff_dfield, buff_mpot2, buff_temp, MM_repulsion)
+    area!(buff_dfield, buff_area)
 
-    potential!(buff_afield, buff_afield, buff_dfield, buff_apot1, buff_temp, AA_repulsion)
+    potential!(buff_mfield, buff_wfield, buff_area, buff_mpot, buff_wpot, MW_repulsion)
+    potential!(buff_mfield, buff_afield, buff_area, buff_mpot1, buff_apot, MA_repulsion)
+    potential!(buff_mfield, buff_mfield, buff_area, buff_mpot2, buff_temp, MM_repulsion)
+
+    potential!(buff_afield, buff_afield, buff_area, buff_apot1, buff_temp, AA_repulsion)
 
     add!(buff_apot, buff_apot1)
     add!(buff_mpot, buff_mpot1)

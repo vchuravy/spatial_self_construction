@@ -15,6 +15,7 @@ function getPotentialKernel{T <: FloatingPoint}(:: Type{T})
         #endif
         #define number $nType
         #define number4 $(nType)4
+        #define number8 $(nType)8
         #define PI $nPi
         #define PI_4 $nPi4
 
@@ -25,32 +26,9 @@ function getPotentialKernel{T <: FloatingPoint}(:: Type{T})
         #define Apot(x,y) aout[y*D2 + x]
         #define Bpot(x,y) bout[y*D2 + x]
 
-        __kernel void area(
-                      __global const number *d,
-                      __global number4 *dout,
-                      const number LONG,
-                      const number SHORT) {
 
-            int i = get_global_id(0);
-
-            const number dir = d[i];
-
-            const number area1 = LONG*SHORT/2 * (   PI_4/2-dir - atan((SHORT-LONG)*sin(2*(  PI_4/2-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(  PI_4/2-dir)))));
-            const number area2 = LONG*SHORT/2 * ( 3*PI_4/2-dir - atan((SHORT-LONG)*sin(2*(3*PI_4/2-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(3*PI_4/2-dir)))));
-            const number area3 = LONG*SHORT/2 * ( 5*PI_4/2-dir - atan((SHORT-LONG)*sin(2*(5*PI_4/2-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(5*PI_4/2-dir)))));
-            const number area4 = LONG*SHORT/2 * ( 7*PI_4/2-dir - atan((SHORT-LONG)*sin(2*(7*PI_4/2-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(7*PI_4/2-dir)))));
-            const number area5 = LONG*SHORT/2 * ( 9*PI_4/2-dir - atan((SHORT-LONG)*sin(2*(9*PI_4/2-dir)) / (SHORT+LONG + (SHORT-LONG)*cos(2*(9*PI_4/2-dir)))));
-
-            const number lps = SHORT * LONG * PI;
-
-            number4 a;
-
-            a.s0 = (area2-area1)/lps;
-            a.s1 = (area3-area2)/lps;
-            a.s2 = (area4-area3)/lps;
-            a.s3 = (area5-area4)/lps;
-
-            dout[i] = a;
+        static number sum(const number8 n) {
+            return n.s0 + n.s1 +n.s2 + n.s3 + n.s4 + n.s5 + n.s6 + n.s7;
         }
 
         __kernel void potential(
@@ -85,58 +63,49 @@ function getPotentialKernel{T <: FloatingPoint}(:: Type{T})
             const number selfRepulsion = 1*repulsion; // making this lower than repulsion allows for neighbors to have relative potential, so increases the chance that the hydrophobe will flow.
             const number r_ij = selfRepulsion * Afield(i,j);
 
-            const number a_ne = Area(north, east).s0;
-            const number a_nj = Area(north, j   ).s1;
-            const number a_nw = Area(north, west).s2;
-            const number a_iw = Area(i    , west).s3;
-            const number a_sw = Area(south, west).s0;
-            const number a_sj = Area(south, j   ).s1;
-            const number a_se = Area(south, east).s2;
-            const number a_ie = Area(i    , east).s3;
+            number8 area;
+            area.s0 = Area(north, east).s0;
+            area.s1 = Area(north, j   ).s1;
+            area.s2 = Area(north, west).s2;
+            area.s3 = Area(i    , west).s3;
+            area.s4 = Area(south, west).s0;
+            area.s5 = Area(south, j   ).s1;
+            area.s6 = Area(south, east).s2;
+            area.s7 = Area(i    , east).s3;
 
-            const number r_ne = repulsion * Afield(north, east);
-            const number r_nj = repulsion * Afield(north, j   );
-            const number r_nw = repulsion * Afield(north, west);
-            const number r_iw = repulsion * Afield(i    , west);
-            const number r_sw = repulsion * Afield(south, west);
-            const number r_sj = repulsion * Afield(south, j   );
-            const number r_se = repulsion * Afield(south, east);
-            const number r_ie = repulsion * Afield(i    , east);
+            number8 r_af;
+            r_af.s0 = Afield(north, east);
+            r_af.s1 = Afield(north, j   );
+            r_af.s2 = Afield(north, west);
+            r_af.s3 = Afield(i    , west);
+            r_af.s4 = Afield(south, west);
+            r_af.s5 = Afield(south, j   );
+            r_af.s6 = Afield(south, east);
+            r_af.s7 = Afield(i    , east);
 
-            Bpot(i,j) =    fma(r_ne, a_ne,
-                           fma(r_nj, a_nj,
-                           fma(r_nw, a_nw,
-                           fma(r_iw, a_iw,
-                           fma(r_sw, a_sw,
-                           fma(r_sj, a_sj,
-                           fma(r_se, a_se,
-                           fma(r_ie, a_ie, r_ij))))))));
+            r_af = repulsion * r_af;
 
-            Apot(i,j) = repulsion *     fma(Bfield(north,east), a_ij.s0,
-                                        fma(Bfield(north,j   ), a_ij.s1,
-                                        fma(Bfield(north,west), a_ij.s2,
-                                        fma(Bfield(i,west    ), a_ij.s3,
-                                        fma(Bfield(south,west), a_ij.s0,
-                                        fma(Bfield(south,j   ), a_ij.s1,
-                                        fma(Bfield(south,east), a_ij.s2,
-                                        fma(Bfield(i,east    ), a_ij.s3, Bfield(i,j)))))))));
+            Bpot(i,j) =   sum(r_af * area) + r_ij;
+
+            Apot(i,j) = repulsion *(Bfield(north,east) * a_ij.s0 +
+                                    Bfield(north,j   ) * a_ij.s1 +
+                                    Bfield(north,west) * a_ij.s2 +
+                                    Bfield(i,west    ) * a_ij.s3 +
+                                    Bfield(south,west) * a_ij.s0 +
+                                    Bfield(south,j   ) * a_ij.s1 +
+                                    Bfield(south,east) * a_ij.s2 +
+                                    Bfield(i,east    ) * a_ij.s3 + Bfield(i,j));
     }
 "
 end
 
 function potentialCL!{T <: FloatingPoint}(
-    a_buff :: Buffer{T}, b_buff :: Buffer{T}, d_buff :: Buffer{T},
+    a_buff :: Buffer{T}, b_buff :: Buffer{T}, area_buff :: Buffer{T},
     aout_buff :: Buffer{T}, bout_buff :: Buffer{T},
-    repulsion :: Real, long :: Real, d1 :: Int64, d2 :: Int64,
+    repulsion :: Real, d1 :: Int64, d2 :: Int64,
     ctx :: Context, queue :: CmdQueue, program :: Program)
 
-    area_buff = cl.Buffer(T, ctx, :rw, d1 * d2 * 4)
-
     k_p = cl.Kernel(program, "potential")
-    k_a = cl.Kernel(program, "area")
-
-    short = one(T)
-    cl.call(queue, k_a, d1*d2, nothing, d_buff, area_buff, convert(T, long), short)
 
     cl.call(queue, k_p, (d1,d2), nothing, a_buff, b_buff, area_buff, aout_buff, bout_buff, int32(d1), int32(d2), convert(T, repulsion))
 end
