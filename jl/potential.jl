@@ -3,14 +3,7 @@
 # repulsion on hydrophobe given concentration of hydrophils
 ###
 
-using NumericExtensions
-
-immutable Number4 {T <: FloatingPoint}
-    s0 :: T
-    s1 :: T
-    s2 :: T
-    s3 :: T
-end
+require("jl/ocl_utils.jl")
 
 function area{T <: FloatingPoint}(direction :: Array{T, 2}, LONG :: Real)
     D1, D2 = size(direction)
@@ -100,5 +93,3 @@ function potentialJl!(Afield :: Matrix, Bfield :: Matrix, direction :: Matrix, A
         end
     end
 end
-
-fma(a, b, c) = a * b + c
