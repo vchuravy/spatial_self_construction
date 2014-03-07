@@ -74,7 +74,8 @@ function deviceWith64Bit()
     return nothing
 end
 
-function main(config=Dict();enableVis = false, enableDirFieldVis = false, fileName = "", loadTime = 0, debug = false, allow32Bit = false)
+function main(config=Dict(); enableVis :: Bool = false, enableDirFieldVis = false, fileName = "", loadTime = 0, debug = false, allow32Bit = false)
+    useVis = enableVis && !(myid() in workers())
     ###
     # Prepare GPU
     ###
@@ -84,20 +85,24 @@ function main(config=Dict();enableVis = false, enableDirFieldVis = false, fileNa
     # Prepare GUI
     ###
 
-    guiproc = if enableVis && (length(procs()) <= 1)
+    guiproc = if useVis && (length(procs()) <= 1)
         first(addprocs(1))
-    else
+    elseif useVis
         last(procs())
+    else
+        -1
     end
-    if enableVis
+    if useVis
         @everywhere using PyPlot
     end
 
-    simulation(enableVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, debug, config, guiproc, ctx, queue)
+    simulation(useVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, debug, config, guiproc, ctx, queue)
 
 end
 
 function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, USECL, :: Type{T}, testCL :: Bool, config :: Dict, guiproc :: Int, ctx, queue)
+worker = myid() in workers()
+
 # initialize membrane fields
 Afield = zeros(T, fieldResY, fieldResX)
 Mfield = zeros(T, fieldResY, fieldResX)
@@ -240,8 +245,9 @@ dF = zeros(T, fieldResY, fieldResX)
 ###
 
 t = 1
-p = Progress(length(tx), 1)
-
+p = if !(worker)
+    Progress(length(tx), 1)
+end
 meanMField = mean(Mfield)
 meanAField = mean(Afield)
 
@@ -541,7 +547,9 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     end
 
     t += stepIntegration
+    if !(worker)
     next!(p)
+    end
 end # While
 
 ###
@@ -650,9 +658,10 @@ matwrite("results/$(year(dt))-$(month(dt))-$(day(dt))_$(hour(dt)):$(minute(dt)):
     "kf3" => kf3,
     "kb3" => kb3
      })
-
+if !(worker)
 println("Press any key to exit program.")
 readline(STDIN)
+end
 end #Function
 
 function fsm(x, y, k)
