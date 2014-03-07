@@ -75,7 +75,7 @@ function deviceWith64Bit()
 end
 
 function main(config=Dict(); enableVis :: Bool = false, enableDirFieldVis = false, fileName = "", loadTime = 0, debug = false, allow32Bit = false)
-    useVis = enableVis && !(myid() in workers())
+    useVis = enableVis && ((length(procs()) == 1) || (!(myid() in workers())))
     ###
     # Prepare GPU
     ###
