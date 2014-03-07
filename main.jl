@@ -311,11 +311,13 @@ else
 end
 
 # create temp arrays
-buff_mpot1 = create()
-buff_wpot = create()
-buff_mpot2 = create()
-buff_apot = create()
 buff_mpot = create()
+buff_mpot1 = create()
+buff_mpot2 = create()
+buff_wpot = create()
+buff_apot = create()
+buff_apot1 = create()
+
 
 buff_mfield = create()
 buff_wfield = create()
@@ -340,6 +342,8 @@ buff_dW = create()
 buff_dA = create()
 buff_dM = create()
 buff_dF = create()
+
+buff_temp = create()
 
 
 # Make sure that the fields are in the correct DataFormat
@@ -380,10 +384,15 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     ###
     # calculate potential based on repulsion
     ###
-    potential!(buff_mfield, buff_wfield, buff_dfield, buff_mpot1, buff_wpot, MW_repulsion)
-    potential!(buff_mfield, buff_afield, buff_dfield, buff_mpot2, buff_apot, MA_repulsion)
+    potential!(buff_mfield, buff_wfield, buff_dfield, buff_mpot, buff_wpot, MW_repulsion)
+    potential!(buff_mfield, buff_afield, buff_dfield, buff_mpot1, buff_apot, MA_repulsion)
+    potential!(buff_mfield, buff_mfield, buff_dfield, buff_mpot2, buff_temp, MM_repulsion)
 
-    add!(buff_mpot1, buff_mpot2, buff_mpot)
+    potential!(buff_afield, buff_afield, buff_dfield, buff_apot1, buff_temp, AA_repulsion)
+
+    add!(buff_apot, buff_apot1)
+    add!(buff_mpot, buff_mpot1)
+    add!(buff_mpot, buff_mpot2)
 
     ###
     # move molecules and update directionality
@@ -548,7 +557,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
 
     t += stepIntegration
     if !(worker)
-    next!(p)
+        next!(p)
     end
 end # While
 

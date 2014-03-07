@@ -73,7 +73,8 @@ attractionRate = 0.1 # attraction of directionality
 
 MW_repulsion=7.0
 MA_repulsion=7.0
-# MM_repulsion=0.0
+MM_repulsion=1.0
+AA_repulsion=1.0
 # WW_repulsion=0.0
 
 long_direction = 20.0
