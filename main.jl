@@ -104,7 +104,7 @@ function main(config=Dict(); enableVis :: Bool = false, enableDirFieldVis = fals
         @everywhere using PyPlot
     end
 
-    simulation(useVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, debug, config, guiproc, ctx, queue)
+   return simulation(useVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, debug, config, guiproc, ctx, queue)
 
 end
 
