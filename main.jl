@@ -248,17 +248,6 @@ end
 
 dF = zeros(T, fieldResY, fieldResX)
 
-###
-# Simulation
-###
-
-t = 1
-p = if !(worker)
-    Progress(length(tx), 1)
-end
-meanMField = mean(Mfield)
-meanAField = mean(Afield)
-
 if USECL
 ###
 # CL prepare programs.
@@ -379,6 +368,18 @@ old_Ffield = copy(Ffield)
 old_Wfield = copy(Wfield)
 old_Afield = copy(Afield)
 old_directionfield = copy(directionfield)
+
+###
+# Simulation
+###
+
+t = 1
+p = if !(worker)
+    Progress(length(tx), 1)
+end
+
+meanMField = mean(Mfield)
+meanAField = mean(Afield)
 
 while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAField < 2) && (meanAField > 0.001)
 
@@ -720,7 +721,7 @@ structF = sumabs(old_Ffield .- Ffield)
 structW = sumabs(old_Wfield .- Wfield)
 structd = sumabs(old_directionfield .- directionfield)
 
-return (t, timeToStable, stable, structM, structA, structF, structW, strcutd)
+return (t, timeToStable, stable, structM, structA, structF, structW, structd)
 end #Function
 
 function fsm(x, y, k)
