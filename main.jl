@@ -386,16 +386,16 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     # Todo only calc mean once per step
     ###
 
-    if t == tearTime1
-        tS = iround(tearSize1*fieldRes/fieldSize)
+    if (t == tearTime1)
+        tS = iround(fieldRes/2+tearSize1*fieldRes/fieldSize)
         t0 = iround(fieldRes/2)
-        Mfield[1:fieldRes,t0:tS] = 0
+        Mfield[fieldRes/2:fieldRes,t0:tS] = 0
     end
 
-    if t == tearTime2
-        tS = iround(tearSize1*fieldRes/fieldSize)
+    if (t == tearTime2)
+        tS = iround(fieldRes/2+tearSize1*fieldRes/fieldSize)
         t0 = iround(fieldRes/2)
-        directionfield[1:fieldRes, t0:tS] = pi .* rand(fieldRes, length(t0:tS))
+        directionfield[fieldRes/2:fieldRes,t0:tS] = pi .* rand(iround(fieldRes-fieldRes/2+1),tS-t0+1)
     end
 
     ###
