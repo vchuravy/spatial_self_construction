@@ -714,11 +714,11 @@ println("Press any key to exit program.")
 readline(STDIN)
 end
 
-structM = abssum(old_Mfield .- Mfield)
-structA = abssum(old_Afield .- Afield)
-structF = abssum(old_Ffield .- Ffield)
-structW = abssum(old_Wfield .- Wfield)
-structd = abssum(old_directionfield .- directionfield)
+structM = sumabs(old_Mfield .- Mfield)
+structA = sumabs(old_Afield .- Afield)
+structF = sumabs(old_Ffield .- Ffield)
+structW = sumabs(old_Wfield .- Wfield)
+structd = sumabs(old_directionfield .- directionfield)
 
 return (t, timeToStable, stable, structM, structA, structF, structW, strcutd)
 end #Function
