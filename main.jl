@@ -370,6 +370,16 @@ Wfield = convert(Array{T}, Wfield)
 Ffield = convert(Array{T}, Ffield)
 Tfield = convert(Array{T}, Tfield)
 
+# Stability and structure
+stable = false
+timeToStable = -1
+
+old_Mfield = copy(Mfield)
+old_Ffield = copy(Ffield)
+old_Wfield = copy(Wfield)
+old_Afield = copy(Afield)
+old_directionfield = copy(directionfield)
+
 while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAField < 2) && (meanAField > 0.001)
 
     ###
@@ -503,6 +513,21 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     add!(buff_wfield, buff_dW)
     copy!(Wfield, buff_wfield)
 
+    # calulate stability criteria
+
+    sumabs_dA = sumabs(read(buff_dA))
+    sumabs_dM = sumabs(read(buff_dM))
+    sumabs_dF = sumabs(read(buff_dF))
+    sumabs_dW = sumabs(read(buff_dW))
+
+    if !stable && (sumabs_dA < epsilon) && (sumabs_dM < epsilon) && (sumabs_dF < epsilon) && (sumabs_dW < epsilon)
+        println("reached a stable config after $t")
+        global timeTotal = t + stableTime
+        timeToStable = t
+    elseif stable
+        stable = false
+    end
+
     #save values for visualization
     meanAField = mean(Afield)
     meanMField = mean(Mfield)
@@ -511,10 +536,8 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAFiel
     Tvec[iround(t/stepIntegration)] = mean(Tfield)
     Mvec[iround(t/stepIntegration)] = meanMField
     Wvec[iround(t/stepIntegration)] = mean(Wfield)
-    if enableVis
-      DAvec[iround(t/stepIntegration)] = sumabs(read(buff_dA))
-      DMvec[iround(t/stepIntegration)] = sumabs(read(buff_dM))
-    end
+    DAvec[iround(t/stepIntegration)] = sumabs_dA
+    DMvec[iround(t/stepIntegration)] = sumabs_dM
 
     if t in tStoreFields
       history_A[:, :, iHistory] = Afield
@@ -690,6 +713,14 @@ if !(worker)
 println("Press any key to exit program.")
 readline(STDIN)
 end
+
+structM = abssum(old_Mfield .- Mfield)
+structA = abssum(old_Afield .- Afield)
+structF = abssum(old_Ffield .- Ffield)
+structW = abssum(old_Wfield .- Wfield)
+structd = abssum(old_directionfield .- directionfield)
+
+return (t, timeToStable, stable, structM, structA, structF, structW, strcutd)
 end #Function
 
 function fsm(x, y, k)
