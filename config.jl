@@ -57,16 +57,6 @@ FrefillBinMask = Frefill .< 0.5
 # Frefill[frefillX, frefillY] = 0
 # FrefillBinMask = Frefill .> 0.5
 
-
-###
-#Tear membrane
-###
-tearTime1 = timeTotal #concentration tear
-tearTime2 = timeTotal #directionality tear
-tearSize1 = 250
-tearSize2 = 250
-
-
 ###
 # diffusion/repulsion
 ###

@@ -32,6 +32,17 @@ Then install the dependencies:
  - Datetime
  - PyPlot
  - OpenCL
+ - Distributions
+ - Images
+
+ If this is the first time you installed Julia you can just copy the file REQUIRE into the folder ~/.julia/v0.3/
+
+```bash
+julia -e "Pkg.init()"
+cp REQUIRE ~/.julia/v0.3/
+```
+
+otherwise add the dependencies via the Julia PKG manager.
 
 ```julia
 Pkg.update()
@@ -85,3 +96,53 @@ If you want to load results from previous runs, copy them to the data folder and
 ```julia
 main(fileName="nameOfFile", loadTime=iStep) #Without the .mat ending, loadTime in the saved interval
 ```
+
+### Causing disturbances
+
+create a Julia Directory in the form of
+```julia
+{
+  time => [name, arg],
+  time2 => [name, arg1, arg2]
+}
+```
+
+Note:
+ - Time has always to be a FloatingPoint value not an Int
+
+#### Gaussian blur
+ - Name : ```:gaussian_blur```
+ - Parameters:
+   - sigma
+
+#### Punch
+ - Name : ```:punch_local```
+ - Parameters:
+   - x: x coordinate of impact
+   - y: y coordinate of impact
+   - alpha:
+   - beta:
+
+#### Random noise
+ - Name : ```:global```
+ - Parameters:
+   - mu:
+   - sig:
+
+#### Tear
+
+##### Tear membrane
+ - Name : ```:tear_membrane```
+ - Parameters:
+   - tearsize:
+
+##### Tear directionfield
+ - Name : ```:tear_dfield```
+ - Parameters:
+   - tearsize:
+
+##### Tear directionfield and membrane
+ - Name : ```:tear```
+ - Parameters:
+   - tearsize:
+

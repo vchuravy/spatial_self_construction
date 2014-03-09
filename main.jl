@@ -5,6 +5,8 @@
 using MAT
 using ProgressMeter
 using Datetime
+using Distributions
+import Images
 import NumericExtensions.sumabs
 import NumericExtensions
 const ne = NumericExtensions
@@ -82,7 +84,24 @@ function deviceWith64Bit()
     return nothing
 end
 
-function main(config=Dict(); enableVis :: Bool = false, enableDirFieldVis = false, fileName = "", loadTime = 0, debug = false, allow32Bit = false, forceJuliaImpl = false)
+function apply_punch_down!(A, x0, y0, a, b)
+			    d1, d2 = size(A)
+			    @assert x0 in 1:d1
+			    @assert y0 in 1:d2
+			    #dist(x, y) = sqrt((x - x0)^2 + (y-y0)^2)
+			    #dist(x, y) = abs(x-x0) + abs(y-y0)
+			    dist(x, y) = ifloor(sqrt((x - x0)^2 + (y-y0)^2))
+			    #punch(d) = 1- sech(1/b * d) ^ a
+			    punch(x)=a*exp(-x^2/(2*b^2))+1
+			    for j in 1:d2
+			        for i in 1:d1
+			            d = dist(i, j)
+			            A[i,j] *= punch(d)
+			        end
+			    end
+			end
+
+function main(config=Dict(), disturbances=Dict(); enableVis :: Bool = false, enableDirFieldVis = false, fileName = "", loadTime = 0, debug = false, allow32Bit = false, forceJuliaImpl = false)
     useVis = enableVis && ((length(procs()) == 1) || (!(myid() in workers())))
     ###
     # Prepare GPU
@@ -104,11 +123,11 @@ function main(config=Dict(); enableVis :: Bool = false, enableDirFieldVis = fals
         @everywhere using PyPlot
     end
 
-   return simulation(useVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, debug, config, guiproc, ctx, queue)
+   return simulation(useVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, debug, config, disturbances, guiproc, ctx, queue)
 
 end
 
-function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, USECL, :: Type{T}, testCL :: Bool, config :: Dict, guiproc :: Int, ctx, queue)
+function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, USECL, :: Type{T}, testCL :: Bool, config :: Dict, disturbances :: Dict, guiproc :: Int, ctx, queue)
 worker = (length(procs()) > 1) && (myid() in workers())
 
 # initialize membrane fields
@@ -381,23 +400,74 @@ end
 meanMField = mean(Mfield)
 meanAField = mean(Afield)
 
-while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.001) && (meanAField < 2) && (meanAField > 0.001)
+###
+# Disturbance steps
+###
 
-    ###
-    # Todo only calc mean once per step
-    ###
+while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.0001) && (meanAField < 2) && (meanAField > 0.0001)
+	if t in keys(disturbances)
+		val = disturbances[t]
+		method = first(val)
+		args = val[2:end]
+		if method == :global && length(args) == 2
+			(mu, sig) = args
+			Mfield += rand(Normal(mu, sig), (40, 40))
+			Afield += rand(Normal(mu, sig), (40, 40))
+			Ffield += rand(Normal(mu, sig), (40, 40))
+			Wfield += rand(Normal(mu, sig), (40, 40))
+			directionfield += rand(Normal(mu, sig), (40, 40))
 
-    if (t == tearTime1)
-        tS = iround(fieldRes/2+tearSize1*fieldRes/fieldSize)
-        t0 = iround(fieldRes/2)
-        Mfield[fieldRes/2:fieldRes,t0:tS] = 0
-    end
+			# Normalize
+			Mfield[Mfield .< 0] = 0
+			Afield[Afield .< 0] = 0
+			Ffield[Ffield .< 0] = 0
+			Wfield[Wfield .< 0] = 0
 
-    if (t == tearTime2)
-        tS = iround(fieldRes/2+tearSize1*fieldRes/fieldSize)
-        t0 = iround(fieldRes/2)
-        directionfield[fieldRes/2:fieldRes,t0:tS] = pi .* rand(iround(fieldRes-fieldRes/2+1),tS-t0+1)
-    end
+			map!(ModFun(), directionfield, pi)
+		elseif method == :punch_local
+			(x, y, alpha, beta) = args
+			if x == 0 || y == 0
+				warn("Taking a membrane point at random")
+				lin_idx = sample(find((s) -> s > 0.5, Mfield))
+				y = lin_idx % fieldResY
+				x = lin_idx - (y*fieldResY)
+			end
+			apply_punch_down!(Mfield, x, y, alpha, beta)
+			apply_punch_down!(Afield, x, y, alpha, beta)
+			apply_punch_down!(Ffield, x, y, alpha, beta)
+			apply_punch_down!(Wfield, x, y, alpha, beta)
+			# apply_punch_down!(directionfield, x, y, alpha, beta)
+		elseif method == :gaussian_blur && length(args) == 1
+			sigma = args[1]
+			Images.imfilter_gaussian_no_nans!(Mfield, [sigma,sigma])
+			Images.imfilter_gaussian_no_nans!(Afield, [sigma,sigma])
+			Images.imfilter_gaussian_no_nans!(Ffield, [sigma,sigma])
+			Images.imfilter_gaussian_no_nans!(Wfield, [sigma,sigma])
+			# directionfield = imfilter_gaussian(directionfield, [sigma,sigma])
+		elseif method == :tear_membrane && length(args) == 1
+			tearsize = args[1]
+
+		    tS = iround(fieldRes/2+tearSize*fieldRes/fieldSize)
+		    t0 = iround(fieldRes/2)
+		    Mfield[fieldRes/2:fieldRes,t0:tS] = 0
+		elseif method == :tear_dfield && length(args) == 1
+			tearsize = args[1]
+
+		    tS = iround(fieldRes/2+tearSize*fieldRes/fieldSize)
+		    t0 = iround(fieldRes/2)
+		    directionfield[fieldRes/2:fieldRes,t0:tS] = pi .* rand(iround(fieldRes-fieldRes/2+1),tS-t0+1)
+		elseif method == :tear && length(args) == 1
+			tearsize = args[1]
+
+		    tS = iround(fieldRes/2+tearSize*fieldRes/fieldSize)
+		    t0 = iround(fieldRes/2)
+
+		    Mfield[fieldRes/2:fieldRes,t0:tS] = 0
+		    directionfield[fieldRes/2:fieldRes,t0:tS] = pi .* rand(iround(fieldRes-fieldRes/2+1),tS-t0+1)
+		else
+			warn("Don't know how to handle $method with arguments $args, carry on.")
+		end
+	end
 
     ###
     # Pushing the fields on the GPU
@@ -620,7 +690,7 @@ elseif meanAField >= 2
 elseif meanAField <= 0.001
   println("mean of AField is smaller than 0.001")
 else
-  println("$(t <= timeTotal) && $(meanMField < 2) && $(meanMField > 0.001) && $(meanAField < 2) && $(meanAField > 0.001)")
+  println("$(t <= timeTotal) && $(meanMField < 2) && $(meanMField > 0.0001) && $(meanAField < 2) && $(meanAField > 0.0001)")
 end
 
 ###
@@ -661,10 +731,6 @@ matwrite("results/$(year(dt))-$(month(dt))-$(day(dt))_$(hour(dt)):$(minute(dt)):
     "avgA" => avgA,
     "avgF" => avgF,
     "avgT" => avgT,
-    "tearTime1" => tearTime1,
-    "tearTime2" => tearTime2,
-    "tearSize1" => tearSize1,
-    "tearSize2" => tearSize2,
     "diffusionF" => diffusionF,
     "diffusionT" => diffusionT,
     "diffusionA" => diffusionA,
