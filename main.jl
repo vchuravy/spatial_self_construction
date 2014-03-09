@@ -48,7 +48,7 @@ function determineCapabilities(allow32Bit = false, forceJuliaImpl = false)
             ctx = cl.Context([device])
             queue = CmdQueue(ctx)
             return (true, true, ctx, queue)
-        else 
+        else
             warn("No OpenCL device with Float64 support found!")
             if allow32Bit
                 warn("Searching for device with Float32 support.")
@@ -101,6 +101,12 @@ function apply_punch_down!(A, x0, y0, a, b)
 			    end
 			end
 
+macro at_proc(p, ex)
+   quote
+           remotecall( $p, ()->eval(Main,$(Expr(:quote,ex))))
+   end
+end
+
 function main(config=Dict(), disturbances=Dict(); enableVis :: Bool = false, enableDirFieldVis = false, fileName = "", loadTime = 0, debug = false, allow32Bit = false, forceJuliaImpl = false)
     useVis = enableVis && ((length(procs()) == 1) || (!(myid() in workers())))
     ###
@@ -120,7 +126,7 @@ function main(config=Dict(), disturbances=Dict(); enableVis :: Bool = false, ena
         -1
     end
     if useVis
-        @everywhere using PyPlot
+        @at_proc guiproc using PyPlot
     end
 
    return simulation(useVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, debug, config, disturbances, guiproc, ctx, queue)
@@ -289,7 +295,7 @@ laplacianProgram = cl.Program(ctx, source=getLaplacianKernel(T)) |> cl.build!
 
 diffusion!(buff_Xfield, buff_Xpot, buff_Xlap) = diffusionCL!(buff_Xfield, buff_Xpot, buff_Xlap, fieldResY, fieldResX, ctx, queue, diffusionProgram)
 potential!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion) = potentialCL!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion, fieldResY, fieldResX, ctx, queue, potentialProgram)
-area!(buff_in, buff_out) = areaCL!(buff_in, buff_out, long_direction, fieldResY, fieldResX, ctx, queue, areaProgram) 
+area!(buff_in, buff_out) = areaCL!(buff_in, buff_out, long_direction, fieldResY, fieldResX, ctx, queue, areaProgram)
 align!(buff_Xfield, buff_Yfield, buff_OUTfield) = alignCL!(buff_Xfield, buff_Yfield, buff_OUTfield, attractionRate, stepIntegration, fieldResY, fieldResX, ctx, queue, alignProgram)
 calcRow!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w) = calcRowCL!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w, fieldResY, fieldResX, ctx, queue, rowProgram)
 laplacian!(buff_in, buff_out) = laplacianCL!(buff_in, buff_out, fieldResY, fieldResX, ctx, queue, laplacianProgram )
@@ -312,7 +318,7 @@ create_n4() = cl.Buffer(T, ctx, :rw, fieldResX * fieldResY * 4)
 else
     diffusion!(buff_Xfield, buff_Xpot, buff_Xlap) = diffusionJl!(buff_Xfield, buff_Xpot, buff_Xlap)
     potential!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion) = potentialJl!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion)
-    area!(buff_in, buff_out) = areaJl!(buff_in, buff_out, long_direction) 
+    area!(buff_in, buff_out) = areaJl!(buff_in, buff_out, long_direction)
     align!(buff_Xfield, buff_Yfield, buff_OUTfield) = alignJl!(buff_Xfield, buff_Yfield, buff_OUTfield, attractionRate, stepIntegration)
     laplacian!(buff_in, buff_out) = LaPlacianJl!(buff_in, buff_out)
     calcRow!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w) = calcRowJl!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w)
