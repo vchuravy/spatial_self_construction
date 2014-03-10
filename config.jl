@@ -86,20 +86,22 @@ baseConfig = {
 dataVars = ["history_W", "history_A", "history_M", "history_M_pot", "history_F", "history_dir", "Avec", "Fvec", "Mvec", "Wvec", "DAvec", "DMvec"]
 
 function createStorageVars()
-    global history_A = nothing
-    global history_F = nothing
-    global history_M = nothing
-    global history_M_pot = nothing
-    global history_W = nothing
-    global history_dir = nothing
+    @eval begin
+        history_A = nothing
+        history_F = nothing
+        history_M = nothing
+        history_M_pot = nothing
+        history_W = nothing
+        history_dir = nothing
 
-    global Avec = nothing
-    global Fvec = nothing
-    global Tvec = nothing
-    global Mvec = nothing
-    global Wvec = nothing
-    global DAvec = nothing
-    global DMvec = nothing
+        Avec = nothing
+        Fvec = nothing
+        Tvec = nothing
+        Mvec = nothing
+        Wvec = nothing
+        DAvec = nothing
+        DMvec = nothing
+    end
 end
 
 function updateDependentValues()

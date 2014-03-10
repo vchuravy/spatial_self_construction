@@ -125,15 +125,16 @@ function main(config=Dict(), disturbances=Dict(); enableVis :: Bool = false, ena
     else
         -1
     end
-    if useVis
-        @at_proc guiproc using PyPlot
+
+    rref = if useVis
+       @at_proc guiproc using PyPlot
     end
 
-   return simulation(useVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, debug, config, disturbances, guiproc, ctx, queue)
+   return simulation(useVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, debug, config, disturbances, guiproc, ctx, queue, rref)
 
 end
 
-function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, USECL, :: Type{T}, testCL :: Bool, config :: Dict, disturbances :: Dict, guiproc :: Int, ctx, queue)
+function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, USECL, :: Type{T}, testCL :: Bool, config :: Dict, disturbances :: Dict, guiproc :: Int, ctx, queue, gui_rref)
 worker = (length(procs()) > 1) && (myid() in workers())
 
 # initialize membrane fields
@@ -233,13 +234,13 @@ iHistory = 1
 #vectors to save global concentrations across time
 
 vecL = iround(timeTotal / stepIntegration)
-global Avec = zeros(T, vecL)
-global Fvec = zeros(T, vecL)
-global Tvec = zeros(T, vecL)
-global Mvec = zeros(T, vecL)
-global Wvec = zeros(T, vecL)
-global DAvec = zeros(T, vecL)
-global DMvec = zeros(T, vecL)
+Avec = zeros(T, vecL)
+Fvec = zeros(T, vecL)
+Tvec = zeros(T, vecL)
+Mvec = zeros(T, vecL)
+Wvec = zeros(T, vecL)
+DAvec = zeros(T, vecL)
+DMvec = zeros(T, vecL)
 
 ###
 # Prepare simulation
@@ -382,7 +383,7 @@ old_directionfield = copy(directionfield)
 
 t = 1
 p = if !(worker)
-    Progress(length(tx), 1)
+    Progress(length(tx), stepIntegration)
 end
 
 meanMField = mean(Mfield)
@@ -611,6 +612,12 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.0001) && (meanAFie
 
 
     if enableVis && (t % visInterval == 0)
+        if !isready(gui_rref)
+            println()
+            println("Waiting for GUI to be initialized.")
+            @time wait(gui_rref)
+            p.tfirst = time()
+        end
     @spawnat guiproc begin
       hold(false)
       # Timeseries plot
@@ -625,12 +632,12 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.0001) && (meanAFie
       subplot(243)
       plot(tx, DAvec, "-", linewidth=2)
       title("DAvec")
-      axis([0, timeTotal, 0, 0.4])
+      axis([0, length(tx), 0, 0.4])
 
       subplot(244)
       plot(tx, DMvec, "-", linewidth=2)
       title("DMvec")
-      axis([0, timeTotal, 0, 0.4])
+      axis([0, length(tx), 0, 0.4])
 
       subplot(245)
       pcolormesh(Mfield, vmin=0, vmax=0.6)
@@ -650,7 +657,8 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.0001) && (meanAFie
 
         U = cos(directionfield)
         V = sin(directionfield)
-        plt.quiver([1:fieldResY], [1:fieldResX], U, V, linewidth=1.5, headwidth = 0.5)
+        d1, d2 = size(directionfield)
+        plt.quiver([1:d1], [1:d2], U, V, linewidth=1.5, headwidth = 0.5)
       # end
       yield()
     end
