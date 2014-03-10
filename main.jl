@@ -137,78 +137,79 @@ function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, 
 worker = (length(procs()) > 1) && (myid() in workers())
 
 # initialize membrane fields
-Afield = zeros(T, fieldResY, fieldResX)
-Mfield = zeros(T, fieldResY, fieldResX)
-Ffield = avgF * ones(T, fieldResY, fieldResX)
-Tfield = zeros(T, fieldResY, fieldResX)
-Wfield = ones(T, fieldResY, fieldResX)
-directionfield = pi/4 * ones(T, fieldResY, fieldResX)
+Afield = nothing
+Mfield = nothing
+Ffield = nothing
+Tfield = nothing
+Wfield = nothing
+directionfield = nothing
 
-# draw membrane circle
-M_circ = zeros(T, fieldResY, fieldResX)
-
-for r in mR:0.01:(mR+mT-1)
-    drawcircle!(M_circ, xc, yc, r)
-end
-Mfield += avgM * M_circ + 0.01* rand(fieldResY, fieldResX)
-
-# fill in with autocatalyst
-A_circ = zeros(T, fieldResY, fieldResX)
-
-for r in 0:0.01:mR
-    drawcircle!(A_circ, xc, yc, r)
-end
-Afield += avgA * A_circ
-
-Wfield -= (Mfield + Afield)
+loadConfig(baseConfig)
+createStorageVars()
 
 if fileName != ""
     vars = matread("data/$(fileName).mat")
+    loadConfig(vars)
+    loadConfig(dataVars, vars)
 
-    for k in keys(vars)
-       s = symbol(k)
-       expr = :($s = $(vars[k]))
-       eval(expr)
+    Wfield = history_Wfield[:,:,loadTime]
+    Afield = history_Afield[:,:,loadTime]
+    Mfield = history_Mfield[:,:,loadTime]
+    Ffield = history_Ffield[:,:,loadTime]
+    directionfield = history_dir[:,:,loadTime]
+end
+
+loadConfig(config)
+
+updateDependentValues()
+
+if fileName == ""
+    Afield = zeros(T, fieldResY, fieldResX)
+    Mfield = zeros(T, fieldResY, fieldResX)
+    Ffield = avgF * ones(T, fieldResY, fieldResX)
+    Tfield = zeros(T, fieldResY, fieldResX)
+    Wfield = ones(T, fieldResY, fieldResX)
+    directionfield = pi/4 * ones(T, fieldResY, fieldResX)
+
+    # draw membrane circle
+    M_circ = zeros(T, fieldResY, fieldResX)
+
+    for r in mR:0.01:(mR+mT-1)
+        drawcircle!(M_circ, xc, yc, r)
+    end
+    Mfield += avgM * M_circ + 0.01* rand(fieldResY, fieldResX)
+
+    # fill in with autocatalyst
+    A_circ = zeros(T, fieldResY, fieldResX)
+
+    for r in 0:0.01:mR
+        drawcircle!(A_circ, xc, yc, r)
+    end
+    Afield += avgA * A_circ
+
+    Wfield -= (Mfield + Afield)
+
+    ###
+    # directionality initialization
+    ###
+
+    # make directionality in a ring
+    for q1 in 1:fieldResX
+        for q2 in 1:fieldResY
+            directionfield[q2,q1] = atan((q2-yc)/(q1-xc))-pi/2
+
+            # correct for 180 degrees
+            while directionfield[q2, q1] > pi
+                 directionfield[q2, q1] -= pi
+            end
+            while directionfield[q2, q1] <= 0 # ??? < 0
+                 directionfield[q2, q1] += pi
+            end
+        end
     end
 
-    Wfield = histWfield[:,:,loadTime]
-    Afield = histAfield[:,:,loadTime]
-    Mfield = histMfield[:,:,loadTime]
-    Ffield = histFfield[:,:,loadTime]
+    directionfield[isnan(directionfield)] = 0
 end
-
-for k in keys(config)
-       s = symbol(k)
-       expr = :($s = $(config[k]))
-       eval(expr)
-end
-
-Frefill = ones(fieldRes, fieldRes)
-frefillX = ceil(fieldRes/2)-mR-mT-fD+1 : ceil(fieldRes/2)+mR+mT+fD
-frefillY = ceil(fieldRes/2)-mR-mT-fD+1 : ceil(fieldRes/2)+mR+mT+fD
-Frefill[frefillX, frefillY] = 0
-FrefillBinMask = Frefill .> 0.5
-
-###
-# directionality initialization
-###
-
-# make directionality in a ring
-for q1 in 1:fieldResX
-    for q2 in 1:fieldResY
-        directionfield[q2,q1] = atan((q2-yc)/(q1-xc))-pi/2
-
-        # correct for 180 degrees
-        while directionfield[q2, q1] > pi
-             directionfield[q2, q1] -= pi
-        end
-        while directionfield[q2, q1] <= 0 # ??? < 0
-             directionfield[q2, q1] += pi
-        end
-    end
-end
-
-directionfield[isnan(directionfield)] = 0
 
 ###
 # Data storing
@@ -218,13 +219,13 @@ directionfield[isnan(directionfield)] = 0
 tStoreFields = 1:stepVisualization:timeTotal
 
 # create 3d matrices to store field activities
-history_A = zeros(T, fieldResY, fieldResX, length(tStoreFields))
-history_F = zeros(T, fieldResY, fieldResX, length(tStoreFields))
-history_T = zeros(T, fieldResY, fieldResX, length(tStoreFields))
-history_M = zeros(T, fieldResY, fieldResX, length(tStoreFields))
-history_M_pot = zeros(T, fieldResY, fieldResX, length(tStoreFields))
-history_W = zeros(T, fieldResY, fieldResX, length(tStoreFields))
-history_dir = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+global history_A = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+global history_F = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+global history_T = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+global history_M = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+global history_M_pot = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+global history_W = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+global history_dir = zeros(T, fieldResY, fieldResX, length(tStoreFields))
 
 # index of the current position in the history matrices
 iHistory = 1
@@ -232,13 +233,13 @@ iHistory = 1
 #vectors to save global concentrations across time
 
 vecL = iround(timeTotal / stepIntegration)
-Avec = zeros(T, vecL)
-Fvec = zeros(T, vecL)
-Tvec = zeros(T, vecL)
-Mvec = zeros(T, vecL)
-Wvec = zeros(T, vecL)
-DAvec = zeros(T, vecL)
-DMvec = zeros(T, vecL)
+global Avec = zeros(T, vecL)
+global Fvec = zeros(T, vecL)
+global Tvec = zeros(T, vecL)
+global Mvec = zeros(T, vecL)
+global Wvec = zeros(T, vecL)
+global DAvec = zeros(T, vecL)
+global DMvec = zeros(T, vecL)
 
 ###
 # Prepare simulation
@@ -247,29 +248,10 @@ DMvec = zeros(T, vecL)
 #define scaled diffusion
 diffA = diffusionA*fieldRes/fieldSize
 diffF = diffusionF*fieldRes/fieldSize
-diffT = diffusionT*fieldRes/fieldSize
 diffM = diffusionM*fieldRes/fieldSize
 diffW = diffusionW*fieldRes/fieldSize
 
-
-dM = 0
-
 tx = [0:stepIntegration:timeTotal-stepIntegration]
-
-
-qX = zeros(T, fieldResX*fieldResY, 1)
-qY = zeros(T, fieldResX*fieldResY, 1)
-qU = zeros(T, fieldResX*fieldResY, 1)
-qV = zeros(T, fieldResX*fieldResY, 1)
-
-ind=1
-for xx in 1:fieldResX
-    for yy in 1:fieldResY
-        qX[ind] = xx
-        qY[ind] = yy
-        ind += 1
-    end
-end
 
 dF = zeros(T, fieldResY, fieldResX)
 
@@ -703,85 +685,8 @@ end
 # Export
 ###
 dt=now()
-matwrite("results/$(year(dt))-$(month(dt))-$(day(dt))_$(hour(dt)):$(minute(dt)):$(second(dt)).mat", {
-    "history_A" => history_A,
-    "history_F" => history_F,
-    "history_T" => history_T,
-    "history_M" => history_M,
-    "history_M_pot" => history_M_pot,
-    "history_W" => history_W,
-    "history_dir" => history_dir,
-    "Avec" => Avec,
-    "Fvec" => Fvec,
-    "Tvec" => Tvec,
-    "Mvec" => Mvec,
-    "Wvec" => Wvec,
-    "DAvec" => DAvec,
-    "DMvec" => DMvec,
-    "fieldSize" => fieldSize,
-    "fieldRes" => fieldRes,
-    "fieldSizeY" => fieldSizeY,
-    "fieldSizeX" => fieldSizeX,
-    "fieldResY" => fieldResY,
-    "fieldResX" => fieldResX,
-    "timeTotal" => timeTotal,
-    "stepIntegration" => stepIntegration,
-    "visInterval" => visInterval,
-    "stepVisualization" => stepVisualization,
-    "xc" => xc,
-    "yc" => yc,
-    "mR" => mR,
-    "mT" => mT,
-    "fD" => fD,
-    "avgM" => avgM,
-    "avgA" => avgA,
-    "avgF" => avgF,
-    "avgT" => avgT,
-    "diffusionF" => diffusionF,
-    "diffusionT" => diffusionT,
-    "diffusionA" => diffusionA,
-    "diffusionM" => diffusionM,
-    "diffusionW" => diffusionW,
-    "attractionRate" => attractionRate,
-    "MW_repulsion" => MW_repulsion,
-    "long_direction" => long_direction,
-    "decayA" => decayA,
-    "decayM" => decayM,
-    "flowRateF" => flowRateF,
-    "saturationF" => saturationF,
-    "noiseMean" => noiseMean,
-    "noiseSD" => noiseSD,
-    "a11" => a11,
-    "a12" => a12,
-    "a21" => a21,
-    "a22" => a22,
-    "a31" => a31,
-    "a32" => a32,
-    "f11" => f11,
-    "f12" => f12,
-    "f21" => f21,
-    "f22" => f22,
-    "f31" => f31,
-    "f32" => f32,
-    "m11" => m11,
-    "m12" => m12,
-    "m21" => m21,
-    "m22" => m22,
-    "m31" => m31,
-    "m32" => m32,
-    "w11" => w11,
-    "w12" => w12,
-    "w21" => w21,
-    "w22" => w22,
-    "w31" => w31,
-    "w32" => w32,
-    "kf1" => kf1,
-    "kb1" => kb1,
-    "kf2" => kf2,
-    "kb2" => kb2,
-    "kf3" => kf3,
-    "kb3" => kb3
-     })
+result = saveConfig([dataVars , collect(keys(baseConfig))])
+matwrite("results/$(year(dt))-$(month(dt))-$(day(dt))_$(hour(dt)):$(minute(dt)):$(second(dt)).mat", result)
 if !(worker)
 println("Press any key to exit program.")
 readline(STDIN)
