@@ -137,6 +137,7 @@ end
 function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, USECL, :: Type{T}, testCL :: Bool, config :: Dict, disturbances :: Dict, guiproc :: Int, ctx, queue, gui_rref)
 worker = (length(procs()) > 1) && (myid() in workers())
 
+
 # initialize membrane fields
 Afield = nothing
 Mfield = nothing
@@ -151,7 +152,7 @@ createStorageVars()
 if fileName != ""
     vars = matread("data/$(fileName).mat")
     loadConfig(vars)
-    loadConfig(dataVars, vars)
+    loadConfig(loadDataVars, vars)
 
     Wfield = history_Wfield[:,:,loadTime]
     Afield = history_Afield[:,:,loadTime]
@@ -610,7 +611,6 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.0001) && (meanAFie
       iHistory += 1
     end
 
-
     if enableVis && (t % visInterval == 0)
         if !isready(gui_rref)
             println()
@@ -618,50 +618,48 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.0001) && (meanAFie
             @time wait(gui_rref)
             p.tfirst = time()
         end
-    @spawnat guiproc begin
-      hold(false)
-      # Timeseries plot
-      subplot(241)
-      plot(tx, Avec, "-", linewidth=2)
-      title("Avec")
+        @spawnat guiproc begin
+          hold(false)
+          # Timeseries plot
+          subplot(241)
+          plot(tx, Avec, "-", linewidth=2)
+          title("Avec")
 
-      subplot(242)
-      plot(tx, Mvec, "-", linewidth=2)
-      title("Mvec")
+          subplot(242)
+          plot(tx, Mvec, "-", linewidth=2)
+          title("Mvec")
 
-      subplot(243)
-      plot(tx, DAvec, "-", linewidth=2)
-      title("DAvec")
-      axis([0, length(tx), 0, 0.4])
+          subplot(243)
+          plot(tx, DAvec, "-", linewidth=2)
+          title("DAvec")
+          axis([0, length(tx), 0, 0.4])
 
-      subplot(244)
-      plot(tx, DMvec, "-", linewidth=2)
-      title("DMvec")
-      axis([0, length(tx), 0, 0.4])
+          subplot(244)
+          plot(tx, DMvec, "-", linewidth=2)
+          title("DMvec")
+          axis([0, length(tx), 0, 0.4])
 
-      subplot(245)
-      pcolormesh(Mfield, vmin=0, vmax=0.6)
-      title("Mfield")
+          subplot(245)
+          pcolormesh(Mfield, vmin=0, vmax=0.6)
+          title("Mfield")
 
-      subplot(246)
-      pcolormesh(Afield, vmin=0, vmax=0.6)
-      title("Afield")
+          subplot(246)
+          pcolormesh(Afield, vmin=0, vmax=0.6)
+          title("Afield")
 
-      subplot(247)
-      pcolormesh(Ffield, vmin=0, vmax=1)
-      title("Ffield")
+          subplot(247)
+          pcolormesh(Ffield, vmin=0, vmax=1)
+          title("Ffield")
 
-      # if enableDirFieldVis
-        subplot(248)
-        title("DirectionField")
 
-        U = cos(directionfield)
-        V = sin(directionfield)
-        d1, d2 = size(directionfield)
-        plt.quiver([1:d1], [1:d2], U, V, linewidth=1.5, headwidth = 0.5)
-      # end
-      yield()
-    end
+            subplot(248)
+            title("DirectionField")
+
+            U = cos(directionfield)
+            V = sin(directionfield)
+            d1, d2 = size(directionfield)
+            plt.quiver([1:d1], [1:d2], U, V, linewidth=1.5, headwidth = 0.5)
+        end
     end
 
     t += stepIntegration
@@ -693,7 +691,7 @@ end
 # Export
 ###
 dt=now()
-result = saveConfig([dataVars , collect(keys(baseConfig))])
+result = saveConfig([saveDataVars , collect(keys(baseConfig))])
 matwrite("results/$(year(dt))-$(month(dt))-$(day(dt))_$(hour(dt)):$(minute(dt)):$(second(dt)).mat", result)
 if !(worker)
 println("Press any key to exit program.")

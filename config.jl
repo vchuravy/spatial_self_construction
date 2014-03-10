@@ -83,7 +83,8 @@ baseConfig = {
     "kb3" => 0.0 # backwards reaction rate
 }
 
-dataVars = ["history_W", "history_A", "history_M", "history_M_pot", "history_F", "history_dir", "Avec", "Fvec", "Mvec", "Wvec", "DAvec", "DMvec"]
+saveDataVars = ["history_W", "history_A", "history_M", "history_M_pot", "history_F", "history_dir", "Avec", "Fvec", "Mvec", "Wvec", "DAvec", "DMvec"]
+loadDataVars = ["history_W", "history_A", "history_M", "history_M_pot", "history_F", "history_dir"]
 
 function createStorageVars()
     @eval begin
@@ -93,14 +94,6 @@ function createStorageVars()
         history_M_pot = nothing
         history_W = nothing
         history_dir = nothing
-
-        Avec = nothing
-        Fvec = nothing
-        Tvec = nothing
-        Mvec = nothing
-        Wvec = nothing
-        DAvec = nothing
-        DMvec = nothing
     end
 end
 
