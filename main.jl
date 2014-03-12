@@ -3,10 +3,8 @@
 ###
 
 using MAT
-using ProgressMeter
 using Datetime
 using Distributions
-import Images
 import NumericExtensions.sumabs
 import NumericExtensions
 const ne = NumericExtensions
@@ -33,6 +31,7 @@ include("cl/deltaCL.jl")
 include("cl/smulCL.jl")
 include("cl/deltaStep2CL.jl")
 include("cl/areaCL.jl")
+include("gaussian_blur.jl")
 
 ###
 # set up initial configuration
@@ -90,7 +89,7 @@ function apply_punch_down!(A, x0, y0, a, b)
 			    @assert y0 in 1:d2
 			    #dist(x, y) = sqrt((x - x0)^2 + (y-y0)^2)
 			    #dist(x, y) = abs(x-x0) + abs(y-y0)
-			    dist(x, y) = ifloor(sqrt((x - x0)^2 + (y-y0)^2))
+			    dist(x, y) = floor(sqrt((x - x0)^2 + (y-y0)^2))
 			    #punch(d) = 1- sech(1/b * d) ^ a
 			    punch(x)=a*exp(-x^2/(2*b^2))+1
 			    for j in 1:d2
@@ -107,8 +106,8 @@ macro at_proc(p, ex)
    end
 end
 
-function main(config=Dict(), disturbances=Dict(); enableVis :: Bool = false, enableDirFieldVis = false, fileName = "", loadTime = 0, debug = false, allow32Bit = false, forceJuliaImpl = false)
-    useVis = enableVis && ((length(procs()) == 1) || (!(myid() in workers())))
+function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bool = false, enableDirFieldVis = false, fileName = "", loadTime = -1, debug = false, allow32Bit = false, forceJuliaImpl = false)
+    useVis = enableVis && ((length(procs()) == 1) || (!(myid() in workers()))) && !cluster
     ###
     # Prepare GPU
     ###
@@ -130,11 +129,12 @@ function main(config=Dict(), disturbances=Dict(); enableVis :: Bool = false, ena
        @at_proc guiproc using PyPlot
     end
 
-   return simulation(useVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, debug, config, disturbances, guiproc, ctx, queue, rref)
-
+   value = simulation(cluster, useVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, debug, config, disturbances, guiproc, ctx, queue, rref)
+   gc()
+   return value
 end
 
-function simulation{T <: FloatingPoint}(enableVis, enableDirFieldVis, fileName, loadTime, USECL, :: Type{T}, testCL :: Bool, config :: Dict, disturbances :: Dict, guiproc :: Int, ctx, queue, gui_rref)
+function simulation{T <: FloatingPoint}(cluster, enableVis, enableDirFieldVis, fileName, loadTime, USECL, :: Type{T}, testCL :: Bool, config :: Dict, disturbances :: Dict, guiproc :: Int, ctx, queue, gui_rref)
 worker = (length(procs()) > 1) && (myid() in workers())
 
 
@@ -149,19 +149,22 @@ directionfield = nothing
 loadConfig(baseConfig)
 createStorageVars()
 
-if fileName != ""
-    vars = matread("data/$(fileName).mat")
-    loadConfig(vars)
-    loadConfig(loadDataVars, vars)
-
-    Wfield = history_Wfield[:,:,loadTime]
-    Afield = history_Afield[:,:,loadTime]
-    Mfield = history_Mfield[:,:,loadTime]
-    Ffield = history_Ffield[:,:,loadTime]
-    directionfield = history_dir[:,:,loadTime]
+fileConfig = if fileName != "" && !cluster
+    matread("data/$(fileName).mat")
+else
+    Dict()
 end
 
+loadConfig(fileConfig)
 loadConfig(config)
+
+if loadTime >= 0
+    Wfield = history_W[:,:,loadTime]
+    Afield = history_A[:,:,loadTime]
+    Mfield = history_M[:,:,loadTime]
+    Ffield = history_F[:,:,loadTime]
+    directionfield = history_dir[:,:,loadTime]
+end
 
 updateDependentValues()
 
@@ -235,13 +238,12 @@ iHistory = 1
 #vectors to save global concentrations across time
 
 vecL = iround(timeTotal / stepIntegration)
-Avec = zeros(T, vecL)
-Fvec = zeros(T, vecL)
-Tvec = zeros(T, vecL)
-Mvec = zeros(T, vecL)
-Wvec = zeros(T, vecL)
-DAvec = zeros(T, vecL)
-DMvec = zeros(T, vecL)
+global Avec = zeros(T, vecL)
+global Fvec = zeros(T, vecL)
+global Mvec = zeros(T, vecL)
+global Wvec = zeros(T, vecL)
+global DAvec = zeros(T, vecL)
+global DMvec = zeros(T, vecL)
 
 ###
 # Prepare simulation
@@ -383,9 +385,6 @@ old_directionfield = copy(directionfield)
 ###
 
 t = 1
-p = if !(worker)
-    Progress(length(tx), stepIntegration)
-end
 
 meanMField = mean(Mfield)
 meanAField = mean(Afield)
@@ -393,8 +392,10 @@ meanAField = mean(Afield)
 ###
 # Disturbance steps
 ###
+tT = timeTotal
 
-while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.0001) && (meanAField < 2) && (meanAField > 0.0001)
+println("Starting loop")
+while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
 	if t in keys(disturbances)
 		val = disturbances[t]
 		method = first(val)
@@ -554,7 +555,7 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.0001) && (meanAFie
 
     copy!(dF, buff_dF)
 
-    dF[FrefillBinMask] += flowRateF * (saturationF - Ffield[FrefillBinMask])
+    dF[FrefillBinMask] += flowRateF * (saturationF .- Ffield[FrefillBinMask])
 
     dT = 0
 
@@ -581,20 +582,35 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.0001) && (meanAFie
     sumabs_dF = sumabs(read(buff_dF))
     sumabs_dW = sumabs(read(buff_dW))
 
-    if !stable && (sumabs_dA < epsilon) && (sumabs_dM < epsilon) && (sumabs_dF < epsilon) && (sumabs_dW < epsilon)
+    stableCondition = (sumabs_dA < epsilon) && (sumabs_dM < epsilon) #&& (sumabs_dF < epsilon) && (sumabs_dW < epsilon)
+
+    if !stable && stableCondition
         println("reached a stable config after $t")
-        global timeTotal = t + stableTime
+        stable = true
+        tT = t + stableTime
         timeToStable = t
-    elseif stable
+
+        #increase storage
+        if(tT > timeTotal)
+            z = zeros(T, iceil((tT-timeTotal)/stepIntegration))
+            append!(Avec, z)
+            append!(Fvec, z)
+            append!(Mvec, z)
+            append!(Wvec, z)
+            append!(DAvec, z)
+            append!(DMvec, z)
+        end
+    elseif stable && !stableCondition
         stable = false
+        warn("Lost stability")
     end
 
     #save values for visualization
     meanAField = mean(Afield)
     meanMField = mean(Mfield)
+
     Avec[iround(t/stepIntegration)] = meanAField
     Fvec[iround(t/stepIntegration)] = mean(Ffield)
-    Tvec[iround(t/stepIntegration)] = mean(Tfield)
     Mvec[iround(t/stepIntegration)] = meanMField
     Wvec[iround(t/stepIntegration)] = mean(Wfield)
     DAvec[iround(t/stepIntegration)] = sumabs_dA
@@ -663,9 +679,6 @@ while (t <= timeTotal) && (meanMField < 2) && (meanMField > 0.0001) && (meanAFie
     end
 
     t += stepIntegration
-    if !(worker)
-        next!(p)
-    end
 end # While
 
 ###
@@ -673,18 +686,10 @@ end # While
 ###
 
 print("Finished because after $t: ")
-if t > timeTotal
+if t > tT
   println("Time done")
-elseif meanMField >= 2
-  println("mean of MField exceeds 2")
-elseif meanMField <= 0.001
-  println("mean of MField is smaller than 0.001")
-elseif meanAField >= 2
-  println("mean of AField exceeds 2")
-elseif meanAField <= 0.001
-  println("mean of AField is smaller than 0.001")
-else
-  println("$(t <= timeTotal) && $(meanMField < 2) && $(meanMField > 0.0001) && $(meanAField < 2) && $(meanAField > 0.0001)")
+elseif isnan(meanMField) || isnan(meanAField)
+   println("Found NaNs")
 end
 
 ###
@@ -693,7 +698,7 @@ end
 dt=now()
 result = saveConfig([saveDataVars , collect(keys(baseConfig))])
 matwrite("results/$(year(dt))-$(month(dt))-$(day(dt))_$(hour(dt)):$(minute(dt)):$(second(dt)).mat", result)
-if !(worker)
+if !(worker || cluster)
 println("Press any key to exit program.")
 readline(STDIN)
 end
@@ -704,7 +709,12 @@ structF = sumabs(old_Ffield .- Ffield)
 structW = sumabs(old_Wfield .- Wfield)
 structd = sumabs(old_directionfield .- directionfield)
 
-return (t, timeToStable, stable, structM, structA, structF, structW, structd)
+if USECL
+    cl.release!(queue)
+end
+
+println("Simulation finished")
+return (t, timeToStable, stable, meanMField, meanAField, structM, structA, structF, structW, structd)
 end #Function
 
 function fsm(x, y, k)

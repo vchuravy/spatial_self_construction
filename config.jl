@@ -22,7 +22,7 @@ function saveConfig(keys)
     dict = Dict{String, Any}()
     for key in keys
         sym = symbol(key)
-        @eval $dict[$key] = $sym
+        dict[key] = eval(sym)
     end
     return dict
 end
