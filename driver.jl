@@ -4,39 +4,35 @@ using DataFrames
 include("config.jl")
 
 function getDisturbance(val)
-    println(val)
     alpha, beta = val
     return {2.0 => [:punch_local, 20, 25, alpha, beta]}
 end
 
-function runCluster(min, max, steps, fileName)
+function runCluster(min, max, steps, fileName, out = "")
     config = matread("data/$(fileName).mat")
-    println("Loaded config")
-    vals = linspace2d(min, max, steps)
-    println("Calculated values to operate on")
+    m1, m2 = max
+    mi1, mi2 = min
+    s1, s2 =steps
+    vals = linspace2d(m1, mi1, s1, m2, mi2, s2)
     results = Dict()
-    println("Starting computation now")
     for v in vals
         r = runProcess(config, v)
         results[v] = r
     end
-    println("Create DF")
     df = resultsToDataFrame(results)
     show(df)
 end
 
-linspace2d(min, max, steps) = [(x,y) for x in linspace(min, max, steps), y in linspace(min, max, steps)]
+linspace2d(min1, max1, steps1, min2, max2, steps2) = [(x,y) for x in linspace(min1, max1, steps1), y in linspace(min2, max2, steps2)]
 
 function runProcess(config, v)
-    println(v)
     dist = getDisturbance(v)
-    println(dist)
     r = main(config, dist, true, loadTime = 1500)
-    # r = (0,0)
+    println("$v, $r")
     return r
 end
 
-function resultsToDataFrame(results)
+function resultsToDataFrame(results, fileName)
     A = Array(Float64,0)
     B = Array(Float64,0)
     T = Array(Float64,0)
@@ -67,7 +63,7 @@ function resultsToDataFrame(results)
         push!(SD, sd)
     end
     data = DataFrame(alpha = A, beta = B, time = T, timeToStable = TS, stable = S, meanM = MM, meanA = MA, structM = SM, structA = SA, structF = SF, structW = SW, structD = SD)
-    writetable("output.csv", data)
+    writetable("$fileName.csv", data)
     return data
 end
 
