@@ -142,12 +142,10 @@ worker = (length(procs()) > 1) && (myid() in workers())
 Afield = nothing
 Mfield = nothing
 Ffield = nothing
-Tfield = nothing
 Wfield = nothing
 directionfield = nothing
 
 loadConfig(baseConfig)
-createStorageVars()
 
 fileConfig = if fileName != "" && !cluster
     matread("data/$(fileName).mat")
@@ -155,24 +153,30 @@ else
     Dict()
 end
 
-loadConfig(fileConfig)
-loadConfig(config)
-
-if loadTime >= 0
-    Wfield = history_W[:,:,loadTime]
-    Afield = history_A[:,:,loadTime]
-    Mfield = history_M[:,:,loadTime]
-    Ffield = history_F[:,:,loadTime]
-    directionfield = history_dir[:,:,loadTime]
-end
-
+loadConfig(fileConfig, dataVars)
+loadConfig(config, dataVars)
 updateDependentValues()
 
-if fileName == ""
+if loadTime >= 0
+    if cluster && checkVars(historyVars, collect(keys(config)))
+        Wfield = config["history_W"][:,:,loadTime]
+        Afield = config["history_A"][:,:,loadTime]
+        Mfield = config["history_M"][:,:,loadTime]
+        Ffield = config["history_F"][:,:,loadTime]
+        directionfield = config["history_dir"][:,:,loadTime]
+    elseif checkVars(historyVars, collect(keys(fileConfig)))
+        Wfield = fileConfig["history_W"][:,:,loadTime]
+        Afield = fileConfig["history_A"][:,:,loadTime]
+        Mfield = fileConfig["history_M"][:,:,loadTime]
+        Ffield = fileConfig["history_F"][:,:,loadTime]
+        directionfield = fileConfig["history_dir"][:,:,loadTime]
+    else
+        error("Could not find historyVars despite being given a loadTime of $loadTime")
+    end
+else
     Afield = zeros(T, fieldResY, fieldResX)
     Mfield = zeros(T, fieldResY, fieldResX)
     Ffield = avgF * ones(T, fieldResY, fieldResX)
-    Tfield = zeros(T, fieldResY, fieldResX)
     Wfield = ones(T, fieldResY, fieldResX)
     directionfield = pi/4 * ones(T, fieldResY, fieldResX)
 
@@ -224,13 +228,13 @@ end
 tStoreFields = 1:stepVisualization:timeTotal
 
 # create 3d matrices to store field activities
-global history_A = zeros(T, fieldResY, fieldResX, length(tStoreFields))
-global history_F = zeros(T, fieldResY, fieldResX, length(tStoreFields))
-global history_T = zeros(T, fieldResY, fieldResX, length(tStoreFields))
-global history_M = zeros(T, fieldResY, fieldResX, length(tStoreFields))
-global history_M_pot = zeros(T, fieldResY, fieldResX, length(tStoreFields))
-global history_W = zeros(T, fieldResY, fieldResX, length(tStoreFields))
-global history_dir = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+history_A = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+history_F = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+history_T = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+history_M = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+history_M_pot = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+history_W = zeros(T, fieldResY, fieldResX, length(tStoreFields))
+history_dir = zeros(T, fieldResY, fieldResX, length(tStoreFields))
 
 # index of the current position in the history matrices
 iHistory = 1
@@ -238,12 +242,12 @@ iHistory = 1
 #vectors to save global concentrations across time
 
 vecL = iround(timeTotal / stepIntegration)
-global Avec = zeros(T, vecL)
-global Fvec = zeros(T, vecL)
-global Mvec = zeros(T, vecL)
-global Wvec = zeros(T, vecL)
-global DAvec = zeros(T, vecL)
-global DMvec = zeros(T, vecL)
+Avec = zeros(T, vecL)
+Fvec = zeros(T, vecL)
+Mvec = zeros(T, vecL)
+Wvec = zeros(T, vecL)
+DAvec = zeros(T, vecL)
+DMvec = zeros(T, vecL)
 
 ###
 # Prepare simulation
@@ -376,7 +380,7 @@ Mfield = convert(Array{T}, Mfield)
 Afield = convert(Array{T}, Afield)
 Wfield = convert(Array{T}, Wfield)
 Ffield = convert(Array{T}, Ffield)
-Tfield = convert(Array{T}, Tfield)
+directionfield = convert(Array{T}, directionfield)
 
 # Stability and structure
 stable = false
@@ -573,7 +577,6 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
     copy!(Afield, buff_afield)
 
     Ffield += dF * stepIntegration
-    #Tfield += dT * stepIntegration
 
     smul!(buff_dM, stepIntegration)
     add!(buff_mfield, buff_dM)
@@ -627,7 +630,6 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
     if t in tStoreFields
       history_A[:, :, iHistory] = Afield
       history_F[:, :, iHistory] = Ffield
-      history_T[:, :, iHistory] = Tfield
       history_M[:, :, iHistory] = Mfield
       history_M_pot[:, :, iHistory] = read(buff_mpot)
       history_W[:, :, iHistory] = Wfield
@@ -704,7 +706,21 @@ end
 # Export
 ###
 dt=now()
-result = saveConfig([saveDataVars , collect(keys(baseConfig))])
+result = {
+    "history_W" => history_W,
+    "history_A" => history_A,
+    "history_M" => history_M,
+    "history_M_pot" => history_M_pot,
+    "history_F" => history_F,
+    "history_dir" => history_dir,
+    "Avec" => Avec,
+    "Fvec" => Fvec,
+    "Mvec" => Mvec,
+    "Wvec" => Wvec,
+    "DAvec" => DAvec,
+    "DMvec" => DMvec
+}
+merge!(result, saveConfig(collect(keys(baseConfig))))
 matwrite("results/$(year(dt))-$(month(dt))-$(day(dt))_$(hour(dt)):$(minute(dt)):$(second(dt)).mat", result)
 if !(worker || cluster)
 println("Press any key to exit program.")

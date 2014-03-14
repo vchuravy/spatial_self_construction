@@ -10,13 +10,15 @@ function loadConfig(dict)
     end
 end
 
-function loadVarConfig(keys, dict)
-    for key in keys
-        @assert key in keys(dict)
-        sym = symbol(key)
-        @eval $sym = $(dict[key])
+function loadConfig(dict, blacklist)
+    for key in keys(dict)
+        if !(key in blacklist)
+            sym = symbol(key)
+            @eval $sym = $(dict[key])
+        end
     end
 end
+
 
 function saveConfig(keys)
     dict = Dict{String, Any}()
@@ -26,6 +28,16 @@ function saveConfig(keys)
     end
     return dict
 end
+
+function checkVars(vars, keys)
+    for v in vars
+        if !(v in keys)
+            return false
+        end
+    end
+    return true
+end
+
 
 baseConfig = {
     "fieldSize"             => 2400,
@@ -83,19 +95,8 @@ baseConfig = {
     "kb3" => 0.0 # backwards reaction rate
 }
 
-saveDataVars = ["history_W", "history_A", "history_M", "history_M_pot", "history_F", "history_dir", "Avec", "Fvec", "Mvec", "Wvec", "DAvec", "DMvec"]
-loadDataVars = ["history_W", "history_A", "history_M", "history_M_pot", "history_F", "history_dir"]
-
-function createStorageVars()
-    @eval begin
-        history_A = nothing
-        history_F = nothing
-        history_M = nothing
-        history_M_pot = nothing
-        history_W = nothing
-        history_dir = nothing
-    end
-end
+historyVars = ["history_W", "history_A", "history_M", "history_M_pot", "history_F", "history_dir"]
+dataVars = ["history_W", "history_A", "history_M", "history_M_pot", "history_F", "history_dir", "Avec", "Fvec", "Mvec", "Wvec", "DAvec", "DMvec"]
 
 function updateDependentValues()
     @eval begin
