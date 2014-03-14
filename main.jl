@@ -305,9 +305,9 @@ read(source) = cl.read(queue, source)
 
 create() = cl.Buffer(T, ctx, :rw, fieldResX * fieldResY)
 create_n4() = cl.Buffer(T, ctx, :rw, fieldResX * fieldResY * 4)
-function create_const(x :: Real)
-    vals = fill(convert(T, x), fieldResY, fieldResX)
-    buff = cl.Buffer(T, ctx, :r, fieldResX * fieldResY)
+function create_const_n4(x :: T)
+    vals = fill(x, fieldResY * fieldResX * 4)
+    buff = cl.Buffer(T, ctx, :r, fieldResX * fieldResY * 4)
     cl.copy!(queue, buff, vals)
     return buff
 end
@@ -334,7 +334,7 @@ else
 
     create() = Array(T, fieldResY, fieldResX)
     create_n4() = Array(Number4{T}, fieldResY, fieldResX)
-    create_const(x :: Real) = fill(convert(T, x), fieldResY, fieldResX)
+    create_const_n4(x :: T) = fill(Number4(x, x, x, x), fieldResY, fieldResX)
 end
 
 # create temp arrays
@@ -372,7 +372,7 @@ buff_dF = create()
 
 buff_temp = create()
 buff_area = create_n4()
-buff_const_area = create_const(1.0/8.0)
+buff_const_area = create_const_n4(convert(T, 1.0/8.0))
 
 
 # Make sure that the fields are in the correct DataFormat
