@@ -19,7 +19,7 @@ function runCluster(min, max, steps, fileName, out = "")
         r = runProcess(config, v)
         results[v] = r
     end
-    df = resultsToDataFrame(results)
+    df = resultsToDataFrame(results, out)
     show(df)
 end
 
