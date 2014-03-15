@@ -642,7 +642,6 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
             println()
             println("Waiting for GUI to be initialized.")
             @time wait(gui_rref)
-            p.tfirst = time()
         end
         @spawnat guiproc begin
           hold(false)
