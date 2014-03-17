@@ -688,22 +688,27 @@ end
 ###
 # Export
 ###
-dt=now()
-result = {
-    "history_W" => hcat(history_W),
-    "history_A" => hcat(history_A),
-    "history_M" => hcat(history_M),
-    "history_F" => hcat(history_F),
-    "history_dir" => hcat(history_dir),
-    "Avec" => Avec,
-    "Fvec" => Fvec,
-    "Mvec" => Mvec,
-    "Wvec" => Wvec,
-    "DAvec" => DAvec,
-    "DMvec" => DMvec
-}
-merge!(result, saveConfig(collect(keys(baseConfig))))
-matwrite("results/$(year(dt))-$(month(dt))-$(day(dt))_$(hour(dt)):$(minute(dt)):$(second(dt)).mat", result)
+try
+    dt=now()
+    result = {
+        "history_W" => hcat(history_W),
+        "history_A" => hcat(history_A),
+        "history_M" => hcat(history_M),
+        "history_F" => hcat(history_F),
+        "history_dir" => hcat(history_dir),
+        "Avec" => Avec,
+        "Fvec" => Fvec,
+        "Mvec" => Mvec,
+        "Wvec" => Wvec,
+        "DAvec" => DAvec,
+        "DMvec" => DMvec
+    }
+    merge!(result, saveConfig(collect(keys(baseConfig))))
+    matwrite("results/$(year(dt))-$(month(dt))-$(day(dt))_$(hour(dt)):$(minute(dt)):$(second(dt)).mat", result)
+catch e
+    warn("Write faile becasue of $e")
+end
+
 if !(worker || cluster)
 println("Press any key to exit program.")
 readline(STDIN)
