@@ -48,7 +48,7 @@ function runCluster(min, max, steps, fileName, outFolder = "results")
             while (length(idle) > 0) && (length(jobs) > 0)
                 work_item = pop!(jobs) # get a work item
                 w = pop!(idle) # get an idle worker
-                rref = @spawnat w runProcess(config, work_item, resultFolder=out)
+                rref = @spawnat w runProcess(config, work_item, resultFolde)
                 working_on[w] = rref
             end
 
@@ -69,9 +69,9 @@ end
 any_ready(vals) = any(map(isready, collect(vals)))
 linspace2d(min1, max1, steps1, min2, max2, steps2) = [(x,y) for x in linspace(min1, max1, steps1), y in linspace(min2, max2, steps2)]
 
-function runProcess(config, v)
+function runProcess(config, v, out)
     dist = getDisturbance(v)
-    r = main(config, dist, true, loadTime = 1500)
+    r = main(config, dist, true, loadTime = 1500, resultFolder=out)
     return (v, r)
 end
 
