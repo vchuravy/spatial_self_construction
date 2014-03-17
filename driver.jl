@@ -3,6 +3,10 @@ using DataFrames
 
 include("config.jl")
 
+jobs = Any[]
+working_on = Dict{Int, RemoteRef}()
+idle = workers()
+
 function getDisturbance(val)
     alpha, beta = val
     return {2.0 => [:punch_local, 20, 25, alpha, beta]}
@@ -14,27 +18,56 @@ function runCluster(min, max, steps, fileName, out = "")
     mi1, mi2 = min
     s1, s2 =steps
     vals = linspace2d(m1, mi1, s1, m2, mi2, s2)
-    results = Dict()
+    results = Any[]
+
     for v in vals
-        r = runProcess(config, v)
-        results[v] = r
+        push!(jobs, v)
     end
-    df = resultsToDataFrame(results, out)
-    show(df)
+
+    try
+        running = true
+        while running
+            for (w, rref) in working_on
+                if isready(rref)
+                    rref = pop!(working_on, w) # remove from dict
+                    result = fetch(rref) # fetch Remote Reference
+                    push!(results, result) # store the result
+                    push!(idle, w) # mark worker as idle
+                end
+            end
+
+            while (length(idle) > 0) && (length(jobs) > 0)
+                work_item = pop!(jobs) # get a work item
+                w = pop!(idle) # get an idle worker
+                rref = @spawnat w runProcess(config, work_item)
+                working_on[w] = rref
+            end
+
+            if (length(jobs) == 0) && (length(working_on) == 0)
+                running = false
+            else
+               yield()
+            end
+        end
+    catch e
+        println(e)
+    finally
+        df = resultsToDataFrame(results, out)
+        show(df)
+    end
 end
 
+any_ready(vals) = any(map(isready, collect(vals)))
 linspace2d(min1, max1, steps1, min2, max2, steps2) = [(x,y) for x in linspace(min1, max1, steps1), y in linspace(min2, max2, steps2)]
 
 function runProcess(config, v)
     dist = getDisturbance(v)
     r = main(config, dist, true, loadTime = 1500)
-    println("$v, $r")
-    return r
+    return (v, r)
 end
 
 function resultsToDataFrame(results, fileName)
-    A = Array(Float64,0)
-    B = Array(Float64,0)
+    Param = Array(Any,0)
     T = Array(Float64,0)
     TS = Array(Float64,0)
     S = Array(Bool,0)
@@ -46,11 +79,9 @@ function resultsToDataFrame(results, fileName)
     SW = Array(Float64,0)
     SD = Array(Float64,0)
 
-    for (key, value) in results
-        alpha, beta = key
-        push!(A, alpha)
-        push!(B, beta)
+    for (p, value) in results
         t, ts, s, mm, ma, sm, sa, sf, sw, sd = value
+        push!(Param, p)
         push!(T, t)
         push!(TS, ts)
         push!(S, s)
@@ -62,7 +93,7 @@ function resultsToDataFrame(results, fileName)
         push!(SW, sw)
         push!(SD, sd)
     end
-    data = DataFrame(alpha = A, beta = B, time = T, timeToStable = TS, stable = S, meanM = MM, meanA = MA, structM = SM, structA = SA, structF = SF, structW = SW, structD = SD)
+    data = DataFrame(parameter=Param, time = T, timeToStable = TS, stable = S, meanM = MM, meanA = MA, structM = SM, structA = SA, structF = SF, structW = SW, structD = SD)
     writetable("$fileName.csv", data)
     return data
 end

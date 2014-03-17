@@ -401,7 +401,6 @@ meanAField = mean(Afield)
 ###
 tT = timeTotal
 
-println("Starting loop")
 while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
 	if t in keys(disturbances)
 		val = disturbances[t]
@@ -715,8 +714,6 @@ structA = sumabs(old_Afield .- Afield)
 structF = sumabs(old_Ffield .- Ffield)
 structW = sumabs(old_Wfield .- Wfield)
 structd = sumabs(old_directionfield .- directionfield)
-
-println("Simulation finished")
 
 return (t, timeToStable, stable, meanMField, meanAField, structM, structA, structF, structW, structd)
 end #Function
