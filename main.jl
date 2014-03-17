@@ -129,9 +129,12 @@ function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bo
        @at_proc guiproc using PyPlot
     end
 
-   value = simulation(cluster, useVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, debug, config, disturbances, guiproc, ctx, queue, rref)
-   gc()
-   return value
+    value = simulation(cluster, useVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, debug, config, disturbances, guiproc, ctx, queue, rref)
+
+    ctx = nothing
+    queue = nothing
+    gc()
+    return value
 end
 
 function simulation{T <: FloatingPoint}(cluster, enableVis, enableDirFieldVis, fileName, loadTime, USECL, :: Type{T}, testCL :: Bool, config :: Dict, disturbances :: Dict, guiproc :: Int, ctx, queue, gui_rref)
@@ -710,11 +713,8 @@ structF = sumabs(old_Ffield .- Ffield)
 structW = sumabs(old_Wfield .- Wfield)
 structd = sumabs(old_directionfield .- directionfield)
 
-if USECL
-    cl.release!(queue)
-end
-
 println("Simulation finished")
+
 return (t, timeToStable, stable, meanMField, meanAField, structM, structA, structF, structW, structd)
 end #Function
 
