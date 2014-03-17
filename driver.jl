@@ -48,7 +48,7 @@ function runCluster(min, max, steps, fileName, outFolder = "results")
             while (length(idle) > 0) && (length(jobs) > 0)
                 work_item = pop!(jobs) # get a work item
                 w = pop!(idle) # get an idle worker
-                rref = @spawnat w runProcess(config, work_item, resultFolde)
+                rref = @spawnat w runProcess(config, work_item, out)
                 working_on[w] = rref
             end
 
