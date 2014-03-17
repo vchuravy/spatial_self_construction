@@ -424,17 +424,20 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
 			map!(ModFun(), directionfield, pi)
 		elseif method == :punch_local
 			(x, y, alpha, beta) = args
-			if x == 0 || y == 0
-				warn("Taking a membrane point at random")
-				lin_idx = sample(find((s) -> s > 0.5, Mfield))
-				y = lin_idx % fieldResY
-				x = lin_idx - (y*fieldResY)
-			end
 			apply_punch_down!(Mfield, x, y, alpha, beta)
 			apply_punch_down!(Afield, x, y, alpha, beta)
 			apply_punch_down!(Ffield, x, y, alpha, beta)
 			apply_punch_down!(Wfield, x, y, alpha, beta)
-			# apply_punch_down!(directionfield, x, y, alpha, beta)
+            # apply_punch_down!(directionfield, x, y, alpha, beta)
+        elseif method == :punch_random
+            (alpha, beta) = args
+            lin_idx = sample(find((s) -> s > 0.5, Mfield))
+            y = lin_idx % fieldResY
+            x = lin_idx - (y*fieldResY)
+            apply_punch_down!(Mfield, x, y, alpha, beta)
+            apply_punch_down!(Afield, x, y, alpha, beta)
+            apply_punch_down!(Ffield, x, y, alpha, beta)
+            apply_punch_down!(Wfield, x, y, alpha, beta)
 		elseif method == :gaussian_blur && length(args) == 1
 			sigma = args[1]
 			Images.imfilter_gaussian_no_nans!(Mfield, [sigma,sigma])
