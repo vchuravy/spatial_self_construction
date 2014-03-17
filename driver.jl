@@ -1,5 +1,6 @@
 using MAT
 using DataFrames
+using Datetime
 
 include("config.jl")
 
@@ -9,10 +10,18 @@ idle = workers()
 
 function getDisturbance(val)
     alpha, beta = val
-    return {2.0 => [:punch_local, 20, 25, alpha, beta]}
+    return {2.0 => [:punch_local, 20, 15, alpha, beta]}
 end
 
-function runCluster(min, max, steps, fileName, out = "")
+function runCluster(min, max, steps, fileName, outFolder = "results")
+    try
+        mkdir(outFolder)
+    end
+
+    dt = now()
+    out = "$outFolder/$(year(dt))-$(month(dt))-$(day(dt))_$(hour(dt)):$(minute(dt)):$(second(dt))"
+    mkdir(out)
+
     config = matread("data/$(fileName).mat")
     m1, m2 = max
     mi1, mi2 = min
@@ -39,7 +48,7 @@ function runCluster(min, max, steps, fileName, out = "")
             while (length(idle) > 0) && (length(jobs) > 0)
                 work_item = pop!(jobs) # get a work item
                 w = pop!(idle) # get an idle worker
-                rref = @spawnat w runProcess(config, work_item)
+                rref = @spawnat w runProcess(config, work_item, resultFolder=out)
                 working_on[w] = rref
             end
 
@@ -66,7 +75,7 @@ function runProcess(config, v)
     return (v, r)
 end
 
-function resultsToDataFrame(results, fileName)
+function resultsToDataFrame(results, folder)
     Param = Array(Any,0)
     T = Array(Float64,0)
     TS = Array(Float64,0)
@@ -94,7 +103,7 @@ function resultsToDataFrame(results, fileName)
         push!(SD, sd)
     end
     data = DataFrame(parameter=Param, time = T, timeToStable = TS, stable = S, meanM = MM, meanA = MA, structM = SM, structA = SA, structF = SF, structW = SW, structD = SD)
-    writetable("$fileName.csv", data)
+    writetable("$folder/data.csv", data)
     return data
 end
 

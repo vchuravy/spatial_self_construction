@@ -106,7 +106,7 @@ macro at_proc(p, ex)
    end
 end
 
-function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bool = false, enableDirFieldVis = false, fileName = "", loadTime = -1, debug = false, allow32Bit = false, forceJuliaImpl = false)
+function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bool = false, enableDirFieldVis = false, fileName = "", loadTime = -1, debug = false, allow32Bit = false, forceJuliaImpl = false, resultFolder="results")
     useVis = enableVis && ((length(procs()) == 1) || (!(myid() in workers()))) && !cluster
     ###
     # Prepare GPU
@@ -129,7 +129,7 @@ function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bo
        @at_proc guiproc using PyPlot
     end
 
-    value = simulation(cluster, useVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, debug, config, disturbances, guiproc, ctx, queue, rref)
+    value = simulation(cluster, useVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, debug, config, disturbances, guiproc, ctx, queue, rref, resultFolder)
 
     ctx = nothing
     queue = nothing
@@ -137,7 +137,7 @@ function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bo
     return value
 end
 
-function simulation{T <: FloatingPoint}(cluster, enableVis, enableDirFieldVis, fileName, loadTime, USECL, :: Type{T}, testCL :: Bool, config :: Dict, disturbances :: Dict, guiproc :: Int, ctx, queue, gui_rref)
+function simulation{T <: FloatingPoint}(cluster, enableVis, enableDirFieldVis, fileName, loadTime, USECL, :: Type{T}, testCL :: Bool, config :: Dict, disturbances :: Dict, guiproc :: Int, ctx, queue, gui_rref, resultFolder)
 worker = (length(procs()) > 1) && (myid() in workers())
 
 
@@ -704,9 +704,14 @@ try
         "DMvec" => DMvec
     }
     merge!(result, saveConfig(collect(keys(baseConfig))))
-    matwrite("results/$(year(dt))-$(month(dt))-$(day(dt))_$(hour(dt)):$(minute(dt)):$(second(dt)).mat", result)
+    prefix = if cluster
+        "$resultFolder/$(myid())-"
+    else
+        "$resultFolder/"
+    end
+    matwrite("$prefix$(year(dt))-$(month(dt))-$(day(dt))_$(hour(dt)):$(minute(dt)):$(second(dt)).mat", result)
 catch e
-    warn("Write faile becasue of $e")
+    warn("Write failed because of $e")
 end
 
 if !(worker || cluster)
