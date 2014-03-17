@@ -224,30 +224,22 @@ end
 # Data storing
 ###
 
-# set times at which field activities are stored
-tStoreFields = 1:stepVisualization:timeTotal
-
 # create 3d matrices to store field activities
-history_A = zeros(T, fieldResY, fieldResX, length(tStoreFields))
-history_F = zeros(T, fieldResY, fieldResX, length(tStoreFields))
-history_T = zeros(T, fieldResY, fieldResX, length(tStoreFields))
-history_M = zeros(T, fieldResY, fieldResX, length(tStoreFields))
-history_M_pot = zeros(T, fieldResY, fieldResX, length(tStoreFields))
-history_W = zeros(T, fieldResY, fieldResX, length(tStoreFields))
-history_dir = zeros(T, fieldResY, fieldResX, length(tStoreFields))
-
-# index of the current position in the history matrices
-iHistory = 1
+history_A = Array(Array{T, 2}, 0)
+history_F = Array(Array{T, 2}, 0)
+history_T = Array(Array{T, 2}, 0)
+history_M = Array(Array{T, 2}, 0)
+history_W = Array(Array{T, 2}, 0)
+history_dir = Array(Array{T, 2}, 0)
 
 #vectors to save global concentrations across time
 
-vecL = iround(timeTotal / stepIntegration)
-Avec = zeros(T, vecL)
-Fvec = zeros(T, vecL)
-Mvec = zeros(T, vecL)
-Wvec = zeros(T, vecL)
-DAvec = zeros(T, vecL)
-DMvec = zeros(T, vecL)
+Avec = Array(T, 0)
+Fvec = Array(T, 0)
+Mvec = Array(T, 0)
+Wvec = Array(T, 0)
+DAvec = Array(T, 0)
+DMvec = Array(T, 0)
 
 ###
 # Prepare simulation
@@ -600,17 +592,6 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
         stable = true
         tT = t + stableTime
         timeToStable = t
-
-        #increase storage
-        if(tT > timeTotal)
-            z = zeros(T, iceil((tT-timeTotal)/stepIntegration))
-            append!(Avec, z)
-            append!(Fvec, z)
-            append!(Mvec, z)
-            append!(Wvec, z)
-            append!(DAvec, z)
-            append!(DMvec, z)
-        end
     elseif stable && !stableCondition
         stable = false
         warn("Lost stability")
@@ -620,21 +601,19 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
     meanAField = mean(Afield)
     meanMField = mean(Mfield)
 
-    Avec[iround(t/stepIntegration)] = meanAField
-    Fvec[iround(t/stepIntegration)] = mean(Ffield)
-    Mvec[iround(t/stepIntegration)] = meanMField
-    Wvec[iround(t/stepIntegration)] = mean(Wfield)
-    DAvec[iround(t/stepIntegration)] = sumabs_dA
-    DMvec[iround(t/stepIntegration)] = sumabs_dM
+    push!(Avec, meanAField)
+    push!(Mvec, meanMField)
+    push!(Fvec, mean(Ffield))
+    push!(Wvec, mean(Wfield))
+    push!(DAvec, sumabs_dA)
+    push!(DMvec, sumabs_dM)
 
-    if t in tStoreFields
-      history_A[:, :, iHistory] = Afield
-      history_F[:, :, iHistory] = Ffield
-      history_M[:, :, iHistory] = Mfield
-      history_M_pot[:, :, iHistory] = read(buff_mpot)
-      history_W[:, :, iHistory] = Wfield
-      history_dir[:, :, iHistory] = directionfield
-      iHistory += 1
+    if (t % storeStep == 0)
+      push!(history_A, Afield)
+      push!(history_F, Ffield)
+      push!(history_M, Mfield)
+      push!(history_W, Wfield)
+      push!(history_dir, directionfield)
     end
 
     if enableVis && (t % visInterval == 0)
@@ -706,12 +685,11 @@ end
 ###
 dt=now()
 result = {
-    "history_W" => history_W,
-    "history_A" => history_A,
-    "history_M" => history_M,
-    "history_M_pot" => history_M_pot,
-    "history_F" => history_F,
-    "history_dir" => history_dir,
+    "history_W" => hcat(history_W),
+    "history_A" => hcat(history_A),
+    "history_M" => hcat(history_M),
+    "history_F" => hcat(history_F),
+    "history_dir" => hcat(history_dir),
     "Avec" => Avec,
     "Fvec" => Fvec,
     "Mvec" => Mvec,
