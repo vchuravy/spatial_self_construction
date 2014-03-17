@@ -87,9 +87,10 @@ function resultsToDataFrame(results, folder)
     SF = Array(Float64,0)
     SW = Array(Float64,0)
     SD = Array(Float64,0)
+    FN = Array(Any,0)
 
     for (p, value) in results
-        t, ts, s, mm, ma, sm, sa, sf, sw, sd = value
+        t, ts, s, mm, ma, sm, sa, sf, sw, sd, fn = value
         push!(Param, p)
         push!(T, t)
         push!(TS, ts)
@@ -101,8 +102,9 @@ function resultsToDataFrame(results, folder)
         push!(SF, sf)
         push!(SW, sw)
         push!(SD, sd)
+        push!(FN, fn)
     end
-    data = DataFrame(parameter=Param, time = T, timeToStable = TS, stable = S, meanM = MM, meanA = MA, structM = SM, structA = SA, structF = SF, structW = SW, structD = SD)
+    data = DataFrame(parameter=Param, time = T, timeToStable = TS, stable = S, meanM = MM, meanA = MA, structM = SM, structA = SA, structF = SF, structW = SW, structD = SD, fileName = FN)
     writetable("$folder/data.csv", data)
     return data
 end

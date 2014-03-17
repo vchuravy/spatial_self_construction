@@ -400,6 +400,7 @@ meanAField = mean(Afield)
 # Disturbance steps
 ###
 tT = timeTotal
+outFileName = ""
 
 while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
 	if t in keys(disturbances)
@@ -709,7 +710,8 @@ try
     else
         "$resultFolder/"
     end
-    matwrite("$prefix$(year(dt))-$(month(dt))-$(day(dt))_$(hour(dt)):$(minute(dt)):$(second(dt)).mat", result)
+    outFileName = "$prefix$(year(dt))-$(month(dt))-$(day(dt))_$(hour(dt)):$(minute(dt)):$(second(dt)).mat"
+    matwrite(outFileName, result)
 catch e
     warn("Write failed because of $e")
 end
@@ -725,7 +727,7 @@ structF = sumabs(old_Ffield .- Ffield)
 structW = sumabs(old_Wfield .- Wfield)
 structd = sumabs(old_directionfield .- directionfield)
 
-return (t, timeToStable, stable, meanMField, meanAField, structM, structA, structF, structW, structd)
+return (t, timeToStable, stable, meanMField, meanAField, structM, structA, structF, structW, structd, outFileName)
 end #Function
 
 function fsm(x, y, k)
