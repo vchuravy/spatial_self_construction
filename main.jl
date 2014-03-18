@@ -388,8 +388,7 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
         elseif method == :punch_random
             (alpha, beta) = args
             lin_idx = sample(find((s) -> s > 0.5, Mfield))
-            y = lin_idx % fieldResY
-            x = lin_idx - (y*fieldResY)
+            x, y = ind2sub(size(Mfield), lin_idx)
             apply_punch_down!(Mfield, x, y, alpha, beta)
             apply_punch_down!(Afield, x, y, alpha, beta)
             apply_punch_down!(Ffield, x, y, alpha, beta)
