@@ -1,15 +1,16 @@
 using MAT
 using DataFrames
 using Datetime
+using JSON
 
 include("config.jl")
 include("utils.jl")
 
-jobs = Any[]
+jobs = Dict[]
 working_on = Dict{Int, RemoteRef}()
 idle = Int[]
 
-function runCluster(min, max, steps, fileName, outFolder = "results")
+function runCluster(fileName, outFolder = "results"; configName = "cluster_configs/all.json")
     try
         mkdir(outFolder)
     end
@@ -19,15 +20,10 @@ function runCluster(min, max, steps, fileName, outFolder = "results")
     mkdir(out)
 
     config = matread("data/$(fileName).mat")
-    m1, m2 = max
-    mi1, mi2 = min
-    s1, s2 =steps
-    vals = linspace2d(m1, mi1, s1, m2, mi2, s2)
+
     results = Any[]
 
-    for v in vals
-        push!(jobs, v)
-    end
+    jobs = parseClusterConfig(configName)
 
     # Setup everything
     nc, ng, c_ocl = determineWorkload()
@@ -51,6 +47,8 @@ function runCluster(min, max, steps, fileName, outFolder = "results")
         end
         count += 1
     end
+
+    println("Starting simulations on $(nworkers()) workers")
 
     try
         running = true
@@ -95,9 +93,35 @@ function anyready()
     return false
 end
 
-linspace2d(min1, max1, steps1, min2, max2, steps2) = [(x,y) for x in linspace(min1, max1, steps1), y in linspace(min2, max2, steps2)]
+function parseClusterConfig(filePath)
+    config = JSON.parse(open(filePath, "r"))
+    vals = Dict[]
+
+    for (name,  subconfig) in config
+        subvals =
+            if name == "punch_local"
+                parsePunchLocal(subconfig)
+            else
+                warn("Can't handle $name")
+                Dict[]
+            end
+        append!(vals, subvals)
+    end
+    return vals
+end
+
+function parsePunchLocal(config)
+    x = config["x"]
+    y = config["y"]
+    alpha = config["alpha"]
+    beta = config["beta"]
+
+    ranges = map(torange, (x, y, alpha, beta))
+    createDisturbance(:punch_local, ranges)
+end
 
 function resultsToDataFrame(results, folder)
+    Name = Array(Any,0)
     Param = Array(Any,0)
     T = Array(Float64,0)
     TS = Array(Float64,0)
@@ -111,8 +135,9 @@ function resultsToDataFrame(results, folder)
     SD = Array(Float64,0)
     FN = Array(Any,0)
 
-    for (p, value) in results
+    for ((name, p), value) in results
         t, ts, s, mm, ma, sm, sa, sf, sw, sd, fn = value
+        push!(Name, name)
         push!(Param, p)
         push!(T, t)
         push!(TS, ts)
@@ -126,7 +151,7 @@ function resultsToDataFrame(results, folder)
         push!(SD, sd)
         push!(FN, fn)
     end
-    data = DataFrame(parameter=Param, time = T, timeToStable = TS, stable = S, meanM = MM, meanA = MA, structM = SM, structA = SA, structF = SF, structW = SW, structD = SD, fileName = FN)
+    data = DataFrame(name=Name, parameter=Param, time = T, timeToStable = TS, stable = S, meanM = MM, meanA = MA, structM = SM, structA = SA, structF = SF, structW = SW, structD = SD, fileName = FN)
     writetable("$folder/data.csv", data)
     return data
 end

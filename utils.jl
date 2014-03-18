@@ -1,4 +1,5 @@
 import OpenCL; const cl = OpenCL
+using Cartesian
 
 macro at_proc(p, ex)
    quote
@@ -95,3 +96,73 @@ function determineCapabilities(cluster :: Bool = false, allow32Bit = false, forc
     end
 end
 
+# TODO: find a better way to handle arbitrary dimensions.
+function createDisturbance(name :: Symbol, ranges)
+    dim = length(ranges)
+    if dim == 1
+        createDisturbance1(name, ranges)
+    elseif dim == 2
+        createDisturbance2(name, ranges)
+    elseif dim == 3
+        createDisturbance3(name, ranges)
+    elseif dim == 4
+        createDisturbance4(name, ranges)
+    else
+        error("Can't handle dim $dim")
+    end
+end
+
+function createDisturbance4(name :: Symbol, ranges)
+    vals = Dict[]
+
+    @nloops 4 i d -> ranges[d] begin
+        args = @ntuple 4 i
+        push!(vals, {2.0 => [name, args...]})
+    end
+
+    return vals
+end
+
+function createDisturbance3(name :: Symbol, ranges)
+    vals = Dict[]
+
+    @nloops 3 i d -> ranges[d] begin
+        args = @ntuple 3 i
+        push!(vals, {2.0 => [name, args...]})
+    end
+
+    return vals
+end
+
+function createDisturbance2(name :: Symbol, ranges)
+    vals = Dict[]
+
+    @nloops 2 i d -> ranges[d] begin
+        args = @ntuple 2 i
+        push!(vals, {2.0 => [name, args...]})
+    end
+
+    return vals
+end
+
+function createDisturbance1(name :: Symbol, ranges)
+    vals = Dict[]
+
+    @nloops 1 i d -> ranges[d] begin
+        args = @ntuple 1 i
+        push!(vals, {2.0 => [name, args...]})
+    end
+
+    return vals
+end
+
+function torange(c :: Dict)
+    min = c["min"]
+    max = c["max"]
+    step = c["step"]
+    return min:step:max
+end
+
+function torange(c :: Real)
+    return c
+end

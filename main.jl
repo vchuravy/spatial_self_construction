@@ -55,7 +55,7 @@ function apply_punch_down!(A, x0, y0, a, b)
 			    end
 			end
 
-function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bool = false, enableDirFieldVis = false, fileName = "", loadTime = -1, debug = false, allow32Bit = false, forceJuliaImpl = false, resultFolder="results")
+function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bool = false, enableDirFieldVis = false, fileName = "", loadTime = nothing, debug = false, allow32Bit = false, forceJuliaImpl = false, resultFolder="results")
     useVis = enableVis && ((length(procs()) == 1) || (!(myid() in workers()))) && !cluster
     ###
     # Prepare GPU
@@ -109,21 +109,28 @@ loadConfig(fileConfig, dataVars)
 loadConfig(config, dataVars)
 updateDependentValues()
 
-if loadTime >= 0
-    if cluster && checkVars(historyVars, collect(keys(config)))
-        Wfield = config["history_W"][:,:,loadTime]
-        Afield = config["history_A"][:,:,loadTime]
-        Mfield = config["history_M"][:,:,loadTime]
-        Ffield = config["history_F"][:,:,loadTime]
-        directionfield = config["history_dir"][:,:,loadTime]
-    elseif checkVars(historyVars, collect(keys(fileConfig)))
-        Wfield = fileConfig["history_W"][:,:,loadTime]
-        Afield = fileConfig["history_A"][:,:,loadTime]
-        Mfield = fileConfig["history_M"][:,:,loadTime]
-        Ffield = fileConfig["history_F"][:,:,loadTime]
-        directionfield = fileConfig["history_dir"][:,:,loadTime]
+if loadTime != nothing
+    history_W, history_A, history_M, history_F, history_dir =
+        if cluster && checkVars(historyVars, collect(keys(config)))
+            (config["history_W"], config["history_A"], config["history_M"], config["history_F"], config["history_dir"])
+        elseif checkVars(historyVars, collect(keys(fileConfig)))
+            (fileConfig["history_W"], fileConfig["history_A"], fileConfig["history_M"], fileConfig["history_F"], fileConfig["history_dir"])
+        else
+            error("Could not find historyVars despite being given a loadTime of $loadTime")
+        end
+
+    if loadTime == -1
+        Wfield = history_W[:,:,end]
+        Afield = history_A[:,:,end]
+        Mfield = history_M[:,:,end]
+        Ffield = history_F[:,:,end]
+        directionfield = history_dir[:,:,end]
     else
-        error("Could not find historyVars despite being given a loadTime of $loadTime")
+        Wfield = history_W[:,:,loadTime]
+        Afield = history_A[:,:,loadTime]
+        Mfield = history_M[:,:,loadTime]
+        Ffield = history_F[:,:,loadTime]
+        directionfield = history_dir[:,:,loadTime]
     end
 else
     Afield = zeros(T, fieldResY, fieldResX)
