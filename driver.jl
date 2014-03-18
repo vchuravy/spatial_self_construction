@@ -3,15 +3,11 @@ using DataFrames
 using Datetime
 
 include("config.jl")
+include("utils.jl")
 
 jobs = Any[]
 working_on = Dict{Int, RemoteRef}()
-idle = workers()
-
-function getDisturbance(val)
-    alpha, beta = val
-    return {2.0 => [:punch_local, 20, 15, alpha, beta]}
-end
+idle = Int[]
 
 function runCluster(min, max, steps, fileName, outFolder = "results")
     try
@@ -31,6 +27,29 @@ function runCluster(min, max, steps, fileName, outFolder = "results")
 
     for v in vals
         push!(jobs, v)
+    end
+
+    # Setup everything
+    nc, ng, c_ocl = determineWorkload()
+
+    addprocs(nc + ng)
+    idle = workers()
+    require("job.jl")
+
+    count = 1
+    for id in workers()
+        if count <= nc
+            if c_ocl
+                @at_proc id CPU_OCL = true
+            else
+                @at_proc id CPU_OCL = false
+            end
+            @at_proc id GPU_OCL = false
+        else
+            @at_proc id CPU_OCL = false
+            @at_proc id GPU_OCL = true
+        end
+        count += 1
     end
 
     try
@@ -66,14 +85,7 @@ function runCluster(min, max, steps, fileName, outFolder = "results")
     end
 end
 
-any_ready(vals) = any(map(isready, collect(vals)))
 linspace2d(min1, max1, steps1, min2, max2, steps2) = [(x,y) for x in linspace(min1, max1, steps1), y in linspace(min2, max2, steps2)]
-
-function runProcess(config, v, out)
-    dist = getDisturbance(v)
-    r = main(config, dist, true, loadTime = 1500, resultFolder=out)
-    return (v, r)
-end
 
 function resultsToDataFrame(results, folder)
     Param = Array(Any,0)

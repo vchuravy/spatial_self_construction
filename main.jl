@@ -32,56 +32,11 @@ include("cl/smulCL.jl")
 include("cl/deltaStep2CL.jl")
 include("cl/areaCL.jl")
 include("gaussian_blur.jl")
+include("utils.jl")
 
 ###
 # set up initial configuration
 ###
-
-function determineCapabilities(allow32Bit = false, forceJuliaImpl = false)
-    try
-        if forceJuliaImpl
-            error("forced usage of Julia implementation.")
-        end
-        device = deviceWith64Bit()
-        if device != nothing
-            ctx = cl.Context([device])
-            queue = CmdQueue(ctx)
-            return (true, true, ctx, queue)
-        else
-            warn("No OpenCL device with Float64 support found!")
-            if allow32Bit
-                warn("Searching for device with Float32 support.")
-                device, ctx, queue = cl.create_compute_context()
-                return (false, true, ctx, queue)
-            else
-                throw(Exception())
-            end
-        end
-    catch e
-        println("Got exception: $e")
-        warn("OpenCL is not supported falling back to Julia computation")
-        return (true, false, nothing, nothing)
-    end
-end
-
-function deviceWith64Bit()
-    amd = "cl_amd_fp64"
-    khr = "cl_khr_fp64"
-    for device in cl.devices(:gpu)
-        ext = cl.info(device, :extensions)
-        if (khr in ext) || (amd in ext)
-            return device
-        end
-    end
-    for device in cl.devices(:cpu)
-        ext = cl.info(device, :extensions)
-        if (khr in ext) || (amd in ext)
-            warn("Only found 64bit support on the CPU")
-            return device
-        end
-    end
-    return nothing
-end
 
 function apply_punch_down!(A, x0, y0, a, b)
 			    d1, d2 = size(A)
@@ -100,18 +55,12 @@ function apply_punch_down!(A, x0, y0, a, b)
 			    end
 			end
 
-macro at_proc(p, ex)
-   quote
-           remotecall( $p, ()->eval(Main,$(Expr(:quote,ex))))
-   end
-end
-
 function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bool = false, enableDirFieldVis = false, fileName = "", loadTime = -1, debug = false, allow32Bit = false, forceJuliaImpl = false, resultFolder="results")
     useVis = enableVis && ((length(procs()) == 1) || (!(myid() in workers()))) && !cluster
     ###
     # Prepare GPU
     ###
-    const P64BIT, USECL, ctx, queue = determineCapabilities(allow32Bit, forceJuliaImpl)
+    const P64BIT, USECL, ctx, queue = determineCapabilities(cluster, allow32Bit, forceJuliaImpl)
 
     ###
     # Prepare GUI
