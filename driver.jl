@@ -69,10 +69,12 @@ function runCluster(fileName, outFolder = "results"; configName = "cluster_confi
                 working_on[w] = rref
             end
 
+            println("Running jobs: $(length(working_on))")
+            println("Jobs left: $(length(jobs))")
+
             if (length(jobs) == 0) && (length(working_on) == 0)
                 running = false
             else
-               yield()
                timedwait(anyready, 120.0, pollint=0.5)
             end
         end
@@ -90,7 +92,7 @@ function anyready()
             return true
         end
     end
-    return false
+    return isempty(working_on)
 end
 
 function parseClusterConfig(filePath)

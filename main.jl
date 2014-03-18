@@ -628,6 +628,7 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
         end
     end
 
+    yield() # to be able to answer question about the status
     t += stepIntegration
 end # While
 
