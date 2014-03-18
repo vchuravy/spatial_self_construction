@@ -75,6 +75,7 @@ function runCluster(min, max, steps, fileName, outFolder = "results")
                 running = false
             else
                yield()
+               timedwait(anyready, 120.0, pollint=0.5)
             end
         end
     catch e
@@ -83,6 +84,15 @@ function runCluster(min, max, steps, fileName, outFolder = "results")
         df = resultsToDataFrame(results, out)
         show(df)
     end
+end
+
+function anyready()
+    for rref in values(working_on)
+        if isready(rref)
+            return true
+        end
+    end
+    return false
 end
 
 linspace2d(min1, max1, steps1, min2, max2, steps2) = [(x,y) for x in linspace(min1, max1, steps1), y in linspace(min2, max2, steps2)]
