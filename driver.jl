@@ -10,7 +10,7 @@ jobs = Dict[]
 working_on = Dict{Int, RemoteRef}()
 idle = Int[]
 
-function runCluster(fileName, outFolder = "results"; configName = "cluster_configs/all.json")
+function runCluster(fileName, outFolder = "results"; configName = "cluster_configs/all.json", loadTime=-1)
     try
         mkdir(outFolder)
     end
@@ -65,7 +65,7 @@ function runCluster(fileName, outFolder = "results"; configName = "cluster_confi
             while (length(idle) > 0) && (length(jobs) > 0)
                 work_item = pop!(jobs) # get a work item
                 w = pop!(idle) # get an idle worker
-                rref = @spawnat w runProcess(config, work_item, out)
+                rref = @spawnat w runProcess(config, work_item, out, loadTime)
                 working_on[w] = rref
             end
 
