@@ -103,6 +103,12 @@ function parseClusterConfig(filePath)
         subvals =
             if name == "punch_local"
                 parsePunchLocal(subconfig)
+            elseif name == "punch_random"
+                parsePunchRandom(subconfig)
+            elseif name == "gaussian_blur"
+                parseGaussianBlur(subconfig)
+            elseif name == "global"
+                parseGlobal(subconfig)
             else
                 warn("Can't handle $name")
                 Dict[]
@@ -120,6 +126,33 @@ function parsePunchLocal(config)
 
     ranges = map(torange, (x, y, alpha, beta))
     createDisturbance(:punch_local, ranges)
+end
+
+function parsePunchRandom(config)
+    times = config["times"]
+    alpha = config["alpha"]
+    beta = config["beta"]
+    ranges = map(torange, (alpha, beta))
+
+    vals = Dict[]
+    dist = createDisturbance(:punch_random, ranges)
+    for i in 1:times
+        append!(vals, dist)
+    end
+    return vals
+end
+
+function parseGaussianBlur(config)
+    sigma = config["sigma"]
+    createDisturbance1(:gaussian_blur, torange(sigma))
+end
+
+function parseGlobal(config)
+    mu = config["mu"]
+    sig = config["sig"]
+
+    ranges = map(torange, (mu, sig))
+    createDisturbance(:global, ranges)
 end
 
 function resultsToDataFrame(results, folder)

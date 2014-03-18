@@ -145,10 +145,10 @@ function createDisturbance2(name :: Symbol, ranges)
     return vals
 end
 
-function createDisturbance1(name :: Symbol, ranges)
+function createDisturbance1(name :: Symbol, range)
     vals = Dict[]
 
-    @nloops 1 i d -> ranges[d] begin
+    @nloops 1 i range begin
         args = @ntuple 1 i
         push!(vals, {2.0 => [name, args...]})
     end
