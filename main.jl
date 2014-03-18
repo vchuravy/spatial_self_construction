@@ -396,10 +396,10 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
             apply_punch_down!(Wfield, x, y, alpha, beta)
 		elseif method == :gaussian_blur && length(args) == 1
 			sigma = args[1]
-			Images.imfilter_gaussian_no_nans!(Mfield, [sigma,sigma])
-			Images.imfilter_gaussian_no_nans!(Afield, [sigma,sigma])
-			Images.imfilter_gaussian_no_nans!(Ffield, [sigma,sigma])
-			Images.imfilter_gaussian_no_nans!(Wfield, [sigma,sigma])
+			imfilter_gaussian_no_nans!(Mfield, [sigma,sigma])
+			imfilter_gaussian_no_nans!(Afield, [sigma,sigma])
+			imfilter_gaussian_no_nans!(Ffield, [sigma,sigma])
+			imfilter_gaussian_no_nans!(Wfield, [sigma,sigma])
 			# directionfield = imfilter_gaussian(directionfield, [sigma,sigma])
 		elseif method == :tear_membrane && length(args) == 1
 			tearsize = args[1]
