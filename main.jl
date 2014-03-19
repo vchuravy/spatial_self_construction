@@ -210,8 +210,6 @@ diffF = diffusionF*fieldRes/fieldSize
 diffM = diffusionM*fieldRes/fieldSize
 diffW = diffusionW*fieldRes/fieldSize
 
-tx = [0:stepIntegration:timeTotal-stepIntegration]
-
 dF = zeros(T, fieldResY, fieldResX)
 
 if USECL
@@ -365,11 +363,11 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
 		args = val[2:end]
 		if method == :global && length(args) == 2
 			(mu, sig) = args
-			Mfield += rand(Normal(mu, sig), (40, 40))
-			Afield += rand(Normal(mu, sig), (40, 40))
-			Ffield += rand(Normal(mu, sig), (40, 40))
-			Wfield += rand(Normal(mu, sig), (40, 40))
-			directionfield += rand(Normal(mu, sig), (40, 40))
+			Mfield += rand(Normal(mu, sig), (fieldResY, fieldResX))
+			Afield += rand(Normal(mu, sig), (fieldResY, fieldResX))
+			Ffield += rand(Normal(mu, sig), (fieldResY, fieldResX))
+			Wfield += rand(Normal(mu, sig), (fieldResY, fieldResX))
+			directionfield += rand(Normal(mu, sig), (fieldResY, fieldResX))
 
 			# Normalize
 			Mfield[Mfield .< 0] = 0
@@ -377,7 +375,7 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
 			Ffield[Ffield .< 0] = 0
 			Wfield[Wfield .< 0] = 0
 
-			map!(ModFun(), directionfield, pi)
+			directionfield = map(x -> mod(x, pi), directionfield)
 		elseif method == :punch_local
 			(x, y, alpha, beta) = args
 			apply_punch_down!(Mfield, x, y, alpha, beta)
@@ -601,12 +599,12 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
           subplot(243)
           plot(tx, DAvec, "-", linewidth=2)
           title("DAvec")
-          axis([0, length(tx), 0, 0.4])
+          axis([0, t, 0, 0.4])
 
           subplot(244)
           plot(tx, DMvec, "-", linewidth=2)
           title("DMvec")
-          axis([0, length(tx), 0, 0.4])
+          axis([0, t, 0, 0.4])
 
           subplot(245)
           pcolormesh(Mfield, vmin=0, vmax=0.6)

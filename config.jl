@@ -45,7 +45,6 @@ baseConfig = {
     "timeTotal"             => 5000,
     "stepIntegration"       => 0.5,
     "visInterval"           => 5,
-    "stepVisualization"     => 10,
     "storeStep"             => 100,
     "epsilon"               => 0.001,
     "stableTime"            => 5000,
