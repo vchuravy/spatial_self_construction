@@ -73,8 +73,8 @@ function determineCapabilities(cluster :: Bool = false, allow32Bit = false, forc
             if forceJuliaImpl
                 error("forced usage of Julia implementation.")
             end
-            if any(map(has64Bit, cl.devices(:gpu)))
-                devs = filter(has64Bit, cl.devices(:gpu))
+            if any(map(has64Bit, cl.devices()))
+                devs = filter(has64Bit, cl.devices())
                 ctx = cl.Context(devs)
                 queue = CmdQueue(ctx)
                 return (true, true, ctx, queue)
