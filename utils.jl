@@ -117,7 +117,7 @@ function createDisturbance4(name :: Symbol, ranges)
 
     @nloops 4 i d -> ranges[d] begin
         args = @ntuple 4 i
-        push!(vals, {2.0 => [name, args...]})
+        push!(vals, {100.0 => [name, args...]})
     end
 
     return vals
@@ -128,7 +128,7 @@ function createDisturbance3(name :: Symbol, ranges)
 
     @nloops 3 i d -> ranges[d] begin
         args = @ntuple 3 i
-        push!(vals, {2.0 => [name, args...]})
+        push!(vals, {100.0 => [name, args...]})
     end
 
     return vals
@@ -139,7 +139,7 @@ function createDisturbance2(name :: Symbol, ranges)
 
     @nloops 2 i d -> ranges[d] begin
         args = @ntuple 2 i
-        push!(vals, {2.0 => [name, args...]})
+        push!(vals, {100.0 => [name, args...]})
     end
 
     return vals
@@ -150,7 +150,7 @@ function createDisturbance1(name :: Symbol, range)
 
     @nloops 1 i range begin
         args = @ntuple 1 i
-        push!(vals, {2.0 => [name, args...]})
+        push!(vals, {100.0 => [name, args...]})
     end
 
     return vals
