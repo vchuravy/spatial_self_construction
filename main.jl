@@ -363,11 +363,12 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
 		args = val[2:end]
 		if method == :global && length(args) == 2
 			(mu, sig) = args
-			Mfield += rand(Normal(mu, sig), (fieldResY, fieldResX))
-			Afield += rand(Normal(mu, sig), (fieldResY, fieldResX))
-			Ffield += rand(Normal(mu, sig), (fieldResY, fieldResX))
-			Wfield += rand(Normal(mu, sig), (fieldResY, fieldResX))
-			directionfield += rand(Normal(mu, sig), (fieldResY, fieldResX))
+            mask = !FrefillBinMask
+			Mfield += mask .* rand(Normal(mu, sig), (fieldResY, fieldResX))
+			Afield += mask .* rand(Normal(mu, sig), (fieldResY, fieldResX))
+			Ffield += mask .* rand(Normal(mu, sig), (fieldResY, fieldResX))
+			Wfield += mask .* rand(Normal(mu, sig), (fieldResY, fieldResX))
+			directionfield += mask .* rand(Normal(mu, sig), (fieldResY, fieldResX))
 
 			# Normalize
 			Mfield[Mfield .< 0] = 0
