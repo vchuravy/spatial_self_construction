@@ -184,21 +184,21 @@ end
 ###
 
 # create 3d matrices to store field activities
-history_A = Array(Array{T, 2}, 0)
-history_F = Array(Array{T, 2}, 0)
-history_T = Array(Array{T, 2}, 0)
-history_M = Array(Array{T, 2}, 0)
-history_W = Array(Array{T, 2}, 0)
-history_dir = Array(Array{T, 2}, 0)
+history_A = Array{T, 2}[]
+history_F = Array{T, 2}[]
+history_T = Array{T, 2}[]
+history_M = Array{T, 2}[]
+history_W = Array{T, 2}[]
+history_dir = Array{T, 2}[]
 
 #vectors to save global concentrations across time
 
-Avec = Array(T, 0)
-Fvec = Array(T, 0)
-Mvec = Array(T, 0)
-Wvec = Array(T, 0)
-DAvec = Array(T, 0)
-DMvec = Array(T, 0)
+Avec = T[]
+Fvec = T[]
+Mvec = T[]
+Wvec = T[]
+DAvec = T[]
+DMvec = T[]
 
 ###
 # Prepare simulation
@@ -583,9 +583,13 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
             println("Waiting for GUI to be initialized.")
             @time wait(gui_rref)
         end
+
+        tx = [1:stepIntegration:t]
+
         @spawnat guiproc begin
           hold(false)
           # Timeseries plot
+
           subplot(241)
           plot(tx, Avec, "-", linewidth=2)
           title("Avec")
