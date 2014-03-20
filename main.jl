@@ -77,18 +77,25 @@ Ffield = nothing
 Wfield = nothing
 directionfield = nothing
 
+# Prepare the configuration values and load the default settings
 loadConfig(baseConfig)
 
+# If we have a non empty fileName and we don't run on a cluster
+# Load configuration values from data directory.
 fileConfig = if fileName != "" && !cluster
-    matc_read("data/$(fileName).mat")
+    matread("data/$(fileName).mat")
 else
     Dict()
 end
 
+# Load file config
 loadConfig(fileConfig, dataVars)
-loadConfig(config, dataVars)
-updateDependentValues()
 
+# Overwrite configuration values from a
+loadConfig(config, dataVars)
+updateDependentValues() # Update the values that depend on the configuration
+
+# Load initial state.
 if loadTime != nothing
     history_W, history_A, history_M, history_F, history_dir =
         if cluster && checkVars(historyVars, collect(keys(config)))
