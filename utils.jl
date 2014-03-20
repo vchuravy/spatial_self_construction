@@ -75,7 +75,7 @@ function determineCapabilities(cluster :: Bool = false, allow32Bit = false, forc
             end
             if any(map(has64Bit, cl.devices()))
                 devs = filter(has64Bit, cl.devices())
-                ctx = cl.Context(devs)
+                ctx = cl.Context([first(devs)])
                 queue = CmdQueue(ctx)
                 return (true, true, ctx, queue)
             else
