@@ -206,41 +206,41 @@ diffW = diffusionW*fieldRes/fieldSize
 dF = zeros(T, fieldResY, fieldResX)
 
 # create temp arrays
-buff_mpot = create(T)
-buff_mpot1 = create(T)
-buff_mpot2 = create(T)
-buff_wpot = create(T)
-buff_apot = create(T)
-buff_apot1 = create(T)
+mpot = create(T)
+mpot1 = create(T)
+mpot2 = create(T)
+wpot = create(T)
+apot = create(T)
+apot1 = create(T)
 
 
-buff_mfield = create(T)
-buff_wfield = create(T)
-buff_afield = create(T)
-buff_dfield = create(T)
-buff_ndfield = create(T)
-buff_ffield = create(T)
+buff_Mfield = create(T)
+buff_Wfield = create(T)
+buff_Afield = create(T)
+buff_Dfield = create(T)
+buff_NewDfield = create(T)
+buff_Ffield = create(T)
 
-buff_wlap = create(T)
-buff_alap = create(T)
-buff_mlap = create(T)
-buff_flap = create(T)
+wlap = create(T)
+alap = create(T)
+mlap = create(T)
+flap = create(T)
 
-buff_row1 = create(T)
-buff_row2 = create(T)
-buff_row3 = create(T)
-buff_row4 = create(T)
-buff_row5 = create(T)
-buff_row6 = create(T)
+row1 = create(T)
+row2 = create(T)
+row3 = create(T)
+row4 = create(T)
+row5 = create(T)
+row6 = create(T)
 
-buff_dW = create(T)
-buff_dA = create(T)
-buff_dM = create(T)
+dW = create(T)
+dA = create(T)
+dM = create(T)
 buff_dF = create(T)
 
-buff_temp = create(T)
-buff_area = create_n4(T)
-buff_const_area = create_const_n4(convert(T, 1.0/8.0))
+temp = create(T)
+area = create_n4(T)
+const_area = create_const_n4(convert(T, 1.0/8.0))
 
 
 # Make sure that the fields are in the correct DataFormat
@@ -347,94 +347,94 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
     # Pushing the fields on the GPU
     ###
 
-    c_copy!(buff_mfield, Mfield)
-    c_copy!(buff_wfield, Wfield)
-    c_copy!(buff_afield, Afield)
-    c_copy!(buff_ffield, Ffield)
-    c_copy!(buff_dfield, directionfield)
+    c_copy!(buff_Mfield, Mfield)
+    c_copy!(buff_Wfield, Wfield)
+    c_copy!(buff_Afield, Afield)
+    c_copy!(buff_Ffield, Ffield)
+    c_copy!(buff_Dfield, directionfield)
 
     ###
     # calculate potential based on repulsion
     ###
-    area!(buff_dfield, buff_area)
+    area!(buff_Dfield, area)
 
-    potential!(buff_mfield, buff_wfield, buff_area, buff_mpot, buff_wpot, MW_repulsion)
-    potential!(buff_mfield, buff_afield, buff_area, buff_mpot1, buff_apot, MA_repulsion)
-    potential!(buff_mfield, buff_mfield, buff_area, buff_mpot2, buff_temp, MM_repulsion)
+    potential!(buff_Mfield, buff_Wfield, area, mpot, wpot, MW_repulsion)
+    potential!(buff_Mfield, buff_Afield, area, mpot1, apot, MA_repulsion)
+    potential!(buff_Mfield, buff_Mfield, area, mpot2, temp, MM_repulsion)
 
-    potential!(buff_afield, buff_afield, buff_const_area, buff_apot1, buff_temp, AA_repulsion)
+    potential!(buff_Afield, buff_Afield, const_area, apot1, temp, AA_repulsion)
 
-    c_add!(buff_apot, buff_apot1)
-    c_add!(buff_mpot, buff_mpot1)
-    c_add!(buff_mpot, buff_mpot2)
+    c_add!(apot, apot1)
+    c_add!(mpot, mpot1)
+    c_add!(mpot, mpot2)
 
     ###
     # move molecules and update directionality
     ###
 
-    diffusion!(buff_mfield, buff_mpot, buff_mlap)
-    smul!(buff_mlap, diffM)
+    diffusion!(buff_Mfield, mpot, mlap)
+    smul!(mlap, diffM)
 
-    diffusion!(buff_wfield, buff_wpot, buff_wlap)
-    smul!(buff_wlap, diffW)
+    diffusion!(buff_Wfield, wpot, wlap)
+    smul!(wlap, diffW)
 
-    diffusion!(buff_afield, buff_apot, buff_alap)
-    smul!(buff_alap, diffA)
+    diffusion!(buff_Afield, apot, alap)
+    smul!(alap, diffA)
 
 
     # Laplacian for diffusion
     # Todo calculate in on GPU to be coherent and to minimize data transfers.
-    laplacian!(buff_ffield, buff_flap)
-    smul!(buff_flap, diffF)
+    laplacian!(buff_Ffield, flap)
+    smul!(flap, diffF)
 
     # update direction field based on alignment
-    align!(buff_mfield, buff_dfield, buff_ndfield)
-    c_copy!(directionfield, buff_ndfield)
+    align!(buff_Mfield, buff_Dfield, buff_NewDfield)
+    c_copy!(directionfield, buff_NewDfield)
 
     ###
     # reactions
     ##
 
-    calcRow!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row1, m11, a11, f11, w11)
-    calcRow!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row2, m12, a12, f12, w12)
-    calcRow!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row3, m21, a21, f21, w21)
-    calcRow!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row4, m22, a22, f22, w22)
-    calcRow!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row5, m31, a31, f31, w31)
-    calcRow!(buff_mfield, buff_afield, buff_ffield, buff_wfield, buff_row6, m32, a32, f32, w32)
+    calcRow!(buff_Mfield, buff_Afield, buff_Ffield, buff_Wfield, row1, m11, a11, f11, w11)
+    calcRow!(buff_Mfield, buff_Afield, buff_Ffield, buff_Wfield, row2, m12, a12, f12, w12)
+    calcRow!(buff_Mfield, buff_Afield, buff_Ffield, buff_Wfield, row3, m21, a21, f21, w21)
+    calcRow!(buff_Mfield, buff_Afield, buff_Ffield, buff_Wfield, row4, m22, a22, f22, w22)
+    calcRow!(buff_Mfield, buff_Afield, buff_Ffield, buff_Wfield, row5, m31, a31, f31, w31)
+    calcRow!(buff_Mfield, buff_Afield, buff_Ffield, buff_Wfield, row6, m32, a32, f32, w32)
 
     ##
     # Calculate dA
     ##
 
-    delta!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dA,
+    delta!(row1, row2, row3, row4, row5, row6, dA,
             fsm(a12, a11, kf1), fsm(a11, a12, kb1), fsm(a22, a21, kf2), fsm(a21, a22, kb2), fsm(a32, a31, kf3), fsm(a31, a32, kb3))
-    delta2!(buff_dA, buff_mfield, buff_afield, buff_alap, buff_dA, decayA)
+    delta2!(dA, buff_Mfield, buff_Afield, alap, dA, decayA)
 
     ##
     # Calculate dM
     ##
 
-    delta!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dM,
+    delta!(row1, row2, row3, row4, row5, row6, dM,
             fsm(m12, m11, kf1), fsm(m11, m12, kb1), fsm(m22, m21, kf2), fsm(m21, m22, kb2), fsm(m32, m31, kf3), fsm(m31, m32, kb3))
-    delta2!(buff_dM, buff_afield, buff_mfield, buff_mlap, buff_dM, decayM)
+    delta2!(dM, buff_Afield, buff_Mfield, mlap, dM, decayM)
 
     ##
     # Calculate dW
     ##
 
-    delta!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dW,
+    delta!(row1, row2, row3, row4, row5, row6, dW,
             fsm(w12, w11, kf1), fsm(w11, w12, kb1), fsm(w22, w21, kf2), fsm(w21, w22, kb2), fsm(w32, w31, kf3), fsm(w31, w32, kb3))
 
-    c_add!(buff_dW, buff_wlap)
+    c_add!(dW, wlap)
 
     ##
     # Calculate dF
     ##
 
-    delta!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dF,
+    delta!(row1, row2, row3, row4, row5, row6, buff_dF,
             fsm(f12, f11, kf1), fsm(f11, f12, kb1), fsm(f22, f21, kf2), fsm(f21, f22, kb2), fsm(f32, f31, kf3), fsm(f31, f32, kb3))
 
-    c_add!(buff_dF, buff_flap)
+    c_add!(buff_dF, flap)
 
     c_copy!(dF, buff_dF)
 
@@ -443,26 +443,26 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
     dT = 0
 
     # update values
-    smul!(buff_dA, stepIntegration)
-    c_add!(buff_afield, buff_dA)
-    c_copy!(Afield, buff_afield)
+    smul!(dA, stepIntegration)
+    c_add!(buff_Afield, dA)
+    c_copy!(Afield, buff_Afield)
 
     Ffield += dF * stepIntegration
 
-    smul!(buff_dM, stepIntegration)
-    c_add!(buff_mfield, buff_dM)
-    c_copy!(Mfield, buff_mfield)
+    smul!(dM, stepIntegration)
+    c_add!(buff_Mfield, dM)
+    c_copy!(Mfield, buff_Mfield)
 
-    smul!(buff_dW, stepIntegration)
-    c_add!(buff_wfield, buff_dW)
-    c_copy!(Wfield, buff_wfield)
+    smul!(dW, stepIntegration)
+    c_add!(buff_Wfield, dW)
+    c_copy!(Wfield, buff_Wfield)
 
     # calulate stability criteria
 
-    sumabs_dA = sumabs(c_read(buff_dA))
-    sumabs_dM = sumabs(c_read(buff_dM))
-    sumabs_dF = sumabs(c_read(buff_dF))
-    sumabs_dW = sumabs(c_read(buff_dW))
+    sumabs_dA = sumabs(c_read(dA))
+    sumabs_dM = sumabs(c_read(dM))
+    sumabs_dF = sumabs(dF)
+    sumabs_dW = sumabs(c_read(dW))
 
     stableCondition = (sumabs_dA < epsilon) && (sumabs_dM < epsilon) #&& (sumabs_dF < epsilon) && (sumabs_dW < epsilon)
 
