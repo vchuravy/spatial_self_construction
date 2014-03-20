@@ -8,29 +8,9 @@ using Distributions
 import NumericExtensions.sumabs
 import NumericExtensions
 const ne = NumericExtensions
-import OpenCL
-const cl = OpenCL
 
 include("config.jl")
 include("drawcircle.jl")
-include("jl/potential.jl")
-include("jl/diffusion.jl")
-include("jl/laplacian.jl")
-include("jl/align.jl")
-include("jl/calcRow.jl")
-include("jl/delta.jl")
-include("jl/deltaStep2.jl")
-include("jl/area.jl")
-include("cl/potentialCL.jl")
-include("cl/diffusionCL.jl")
-include("cl/laplacianCL.jl")
-include("cl/addCL.jl")
-include("cl/alignCL.jl")
-include("cl/calcRowCL.jl")
-include("cl/deltaCL.jl")
-include("cl/smulCL.jl")
-include("cl/deltaStep2CL.jl")
-include("cl/areaCL.jl")
 include("gaussian_blur.jl")
 include("utils.jl")
 
@@ -55,7 +35,7 @@ function apply_punch_down!(A, x0, y0, a, b)
 			    end
 			end
 
-function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bool = false, enableDirFieldVis = false, fileName = "", loadTime = nothing, debug = false, allow32Bit = false, forceJuliaImpl = false, resultFolder="results")
+function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bool = false, enableDirFieldVis = false, fileName = "", loadTime = nothing, allow32Bit = false, forceJuliaImpl = false, resultFolder="results")
     useVis = enableVis && ((length(procs()) == 1) || (!(myid() in workers()))) && !cluster
     ###
     # Prepare GPU
@@ -78,7 +58,7 @@ function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bo
        @at_proc guiproc using PyPlot
     end
 
-    value = simulation(cluster, useVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, debug, config, disturbances, guiproc, ctx, queue, rref, resultFolder)
+    value = simulation(cluster, useVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, config, disturbances, guiproc, ctx, queue, rref, resultFolder)
 
     ctx = nothing
     queue = nothing
@@ -86,7 +66,7 @@ function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bo
     return value
 end
 
-function simulation{T <: FloatingPoint}(cluster, enableVis, enableDirFieldVis, fileName, loadTime, USECL, :: Type{T}, testCL :: Bool, config :: Dict, disturbances :: Dict, guiproc :: Int, ctx, queue, gui_rref, resultFolder)
+function simulation{T <: FloatingPoint}(cluster, enableVis, enableDirFieldVis, fileName, loadTime, USECL, :: Type{T}, config :: Dict, disturbances :: Dict, guiproc :: Int, ctx, queue, gui_rref, resultFolder)
 worker = (length(procs()) > 1) && (myid() in workers())
 
 
@@ -100,7 +80,7 @@ directionfield = nothing
 loadConfig(baseConfig)
 
 fileConfig = if fileName != "" && !cluster
-    matread("data/$(fileName).mat")
+    matc_read("data/$(fileName).mat")
 else
     Dict()
 end
@@ -201,6 +181,19 @@ DAvec = T[]
 DMvec = T[]
 
 ###
+# Decide which compute context should be used
+# Either OpenCL or Julia
+###
+
+if USECL
+    include("cl/functions.jl")
+else
+    include("jl/functions.jl")
+end
+
+createComputeContext(T, ctx, queue)
+
+###
 # Prepare simulation
 ###
 
@@ -212,115 +205,41 @@ diffW = diffusionW*fieldRes/fieldSize
 
 dF = zeros(T, fieldResY, fieldResX)
 
-if USECL
-###
-# CL prepare programs.
-
-potentialProgram = cl.Program(ctx, source=getPotentialKernel(T)) |> cl.build!
-areaProgram = cl.Program(ctx, source=getAreaKernel(T)) |> cl.build!
-diffusionProgram = cl.Program(ctx, source=getDiffusionKernel(T)) |> cl.build!
-addProgram = cl.Program(ctx, source=getAddKernel(T)) |> cl.build!
-alignProgram = cl.Program(ctx, source=getAlignKernel(T)) |> cl.build!
-rowProgram = cl.Program(ctx, source=getRowKernel(T)) |> cl.build!
-deltaProgram = cl.Program(ctx, source=getDeltaKernel(T)) |> cl.build!
-smulProgram = cl.Program(ctx, source=getSMulKernel(T)) |> cl.build!
-delta2Program = cl.Program(ctx, source=getDelta2Kernel(T)) |> cl.build!
-laplacianProgram = cl.Program(ctx, source=getLaplacianKernel(T)) |> cl.build!
-
-###
-# Define clfunctions
-# IMPORTANT: Julia convention is func!(X, Y) overrides X with the operation func(X,Y)
-# For the OCL functions the target is always the LAST BUFFER.
-
-diffusion!(buff_Xfield, buff_Xpot, buff_Xlap) = diffusionCL!(buff_Xfield, buff_Xpot, buff_Xlap, fieldResY, fieldResX, ctx, queue, diffusionProgram)
-potential!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion) = potentialCL!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion, fieldResY, fieldResX, ctx, queue, potentialProgram)
-area!(buff_in, buff_out) = areaCL!(buff_in, buff_out, long_direction, fieldResY, fieldResX, ctx, queue, areaProgram)
-align!(buff_Xfield, buff_Yfield, buff_OUTfield) = alignCL!(buff_Xfield, buff_Yfield, buff_OUTfield, attractionRate, stepIntegration, fieldResY, fieldResX, ctx, queue, alignProgram)
-calcRow!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w) = calcRowCL!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w, fieldResY, fieldResX, ctx, queue, rowProgram)
-laplacian!(buff_in, buff_out) = laplacianCL!(buff_in, buff_out, fieldResY, fieldResX, ctx, queue, laplacianProgram )
-delta!(buff1, buff2, buff3, buff4, buff5, buff6, buff_out, x1, x2, x3, x4, x5, x6) = deltaCL!(buff1, buff2, buff3, buff4, buff5, buff6, buff_out, x1, x2, x3, x4, x5, x6, fieldResY, fieldResX, ctx, queue, deltaProgram)
-delta2!(buff_D, buff_Xfield, buff_Yfield, buff_L,buff_out, decay) = delta2CL!(buff_D, buff_Xfield, buff_Yfield, buff_L, buff_out, decay, fieldResY, fieldResX, ctx, queue, delta2Program)
-
-smul!(X, buff_in, buff_out) =  smulCL!(X, buff_in, buff_out, fieldResY, fieldResX, ctx, queue, smulProgram)
-add!(buff_in1, buff_in2, buff_out) = addCL!(buff_in1, buff_in2, buff_out, fieldResY, fieldResX, ctx, queue, addProgram)
-
-#Julia style smul and add
-smul!(buff, X) =  smulCL!(X, buff, buff, fieldResY, fieldResX, ctx, queue, smulProgram)
-add!(buff_out, buff_in) = addCL!(buff_out, buff_in, buff_out, fieldResY, fieldResX, ctx, queue, addProgram)
-
-# Standard Julia Convention target first
-copy!(target, source) = cl.copy!(queue, target, source)
-read(source) = cl.read(queue, source)
-
-create() = cl.Buffer(T, ctx, :rw, fieldResX * fieldResY)
-create_n4() = cl.Buffer(T, ctx, :rw, fieldResX * fieldResY * 4)
-function create_const_n4(x :: T)
-    vals = fill(x, fieldResY * fieldResX * 4)
-    buff = cl.Buffer(T, ctx, :r, fieldResX * fieldResY * 4)
-    cl.copy!(queue, buff, vals)
-    return buff
-end
-else
-    diffusion!(buff_Xfield, buff_Xpot, buff_Xlap) = diffusionJl!(buff_Xfield, buff_Xpot, buff_Xlap)
-    potential!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion) = potentialJl!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion)
-    area!(buff_in, buff_out) = areaJl!(buff_in, buff_out, long_direction)
-    align!(buff_Xfield, buff_Yfield, buff_OUTfield) = alignJl!(buff_Xfield, buff_Yfield, buff_OUTfield, attractionRate, stepIntegration)
-    laplacian!(buff_in, buff_out) = LaPlacianJl!(buff_in, buff_out)
-    calcRow!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w) = calcRowJl!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Wfield, buff_OUT, x, y, z, w)
-    delta!(buff1, buff2, buff3, buff4, buff5, buff6, buff_out, x1, x2, x3, x4, x5, x6) = deltaJl!(buff1, buff2, buff3, buff4, buff5, buff6, buff_out, x1, x2, x3, x4, x5, x6)
-    delta2!(buff_D, buff_Xfield, buff_Yfield, buff_L,buff_out, decay) = delta2Jl!(buff_D, buff_Xfield, buff_Yfield, buff_L, buff_out, decay)
-
-
-    smul!(X, buff_in, buff_out) = ne.multiply!(copy!(bouff_out, buff_in), X)
-    add!(in1, in2, out) = ne.add!(copy!(out, in1), in2)
-
-    #Julia style smul and add
-    smul!(out, x) = ne.multiply!(out, x)
-    add!(out, in2) = ne.add!(out, in2)
-
-    read(source) = copy(source)
-    copy!(target, source) = Base.copy!(target, source)
-
-    create() = Array(T, fieldResY, fieldResX)
-    create_n4() = Array(Number4{T}, fieldResY, fieldResX)
-    create_const_n4(x :: T) = fill(Number4(x, x, x, x), fieldResY, fieldResX)
-end
-
 # create temp arrays
-buff_mpot = create()
-buff_mpot1 = create()
-buff_mpot2 = create()
-buff_wpot = create()
-buff_apot = create()
-buff_apot1 = create()
+buff_mpot = create(T)
+buff_mpot1 = create(T)
+buff_mpot2 = create(T)
+buff_wpot = create(T)
+buff_apot = create(T)
+buff_apot1 = create(T)
 
 
-buff_mfield = create()
-buff_wfield = create()
-buff_afield = create()
-buff_dfield = create()
-buff_ndfield = create()
-buff_ffield = create()
+buff_mfield = create(T)
+buff_wfield = create(T)
+buff_afield = create(T)
+buff_dfield = create(T)
+buff_ndfield = create(T)
+buff_ffield = create(T)
 
-buff_wlap = create()
-buff_alap = create()
-buff_mlap = create()
-buff_flap = create()
+buff_wlap = create(T)
+buff_alap = create(T)
+buff_mlap = create(T)
+buff_flap = create(T)
 
-buff_row1 = create()
-buff_row2 = create()
-buff_row3 = create()
-buff_row4 = create()
-buff_row5 = create()
-buff_row6 = create()
+buff_row1 = create(T)
+buff_row2 = create(T)
+buff_row3 = create(T)
+buff_row4 = create(T)
+buff_row5 = create(T)
+buff_row6 = create(T)
 
-buff_dW = create()
-buff_dA = create()
-buff_dM = create()
-buff_dF = create()
+buff_dW = create(T)
+buff_dA = create(T)
+buff_dM = create(T)
+buff_dF = create(T)
 
-buff_temp = create()
-buff_area = create_n4()
+buff_temp = create(T)
+buff_area = create_n4(T)
 buff_const_area = create_const_n4(convert(T, 1.0/8.0))
 
 
@@ -428,11 +347,11 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
     # Pushing the fields on the GPU
     ###
 
-    copy!(buff_mfield, Mfield)
-    copy!(buff_wfield, Wfield)
-    copy!(buff_afield, Afield)
-    copy!(buff_ffield, Ffield)
-    copy!(buff_dfield, directionfield)
+    c_copy!(buff_mfield, Mfield)
+    c_copy!(buff_wfield, Wfield)
+    c_copy!(buff_afield, Afield)
+    c_copy!(buff_ffield, Ffield)
+    c_copy!(buff_dfield, directionfield)
 
     ###
     # calculate potential based on repulsion
@@ -445,9 +364,9 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
 
     potential!(buff_afield, buff_afield, buff_const_area, buff_apot1, buff_temp, AA_repulsion)
 
-    add!(buff_apot, buff_apot1)
-    add!(buff_mpot, buff_mpot1)
-    add!(buff_mpot, buff_mpot2)
+    c_add!(buff_apot, buff_apot1)
+    c_add!(buff_mpot, buff_mpot1)
+    c_add!(buff_mpot, buff_mpot2)
 
     ###
     # move molecules and update directionality
@@ -470,7 +389,7 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
 
     # update direction field based on alignment
     align!(buff_mfield, buff_dfield, buff_ndfield)
-    copy!(directionfield, buff_ndfield)
+    c_copy!(directionfield, buff_ndfield)
 
     ###
     # reactions
@@ -506,7 +425,7 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
     delta!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dW,
             fsm(w12, w11, kf1), fsm(w11, w12, kb1), fsm(w22, w21, kf2), fsm(w21, w22, kb2), fsm(w32, w31, kf3), fsm(w31, w32, kb3))
 
-    add!(buff_dW, buff_wlap)
+    c_add!(buff_dW, buff_wlap)
 
     ##
     # Calculate dF
@@ -515,9 +434,9 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
     delta!(buff_row1, buff_row2, buff_row3, buff_row4, buff_row5, buff_row6, buff_dF,
             fsm(f12, f11, kf1), fsm(f11, f12, kb1), fsm(f22, f21, kf2), fsm(f21, f22, kb2), fsm(f32, f31, kf3), fsm(f31, f32, kb3))
 
-    add!(buff_dF, buff_flap)
+    c_add!(buff_dF, buff_flap)
 
-    copy!(dF, buff_dF)
+    c_copy!(dF, buff_dF)
 
     dF[FrefillBinMask] += flowRateF * (saturationF .- Ffield[FrefillBinMask])
 
@@ -525,25 +444,25 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
 
     # update values
     smul!(buff_dA, stepIntegration)
-    add!(buff_afield, buff_dA)
-    copy!(Afield, buff_afield)
+    c_add!(buff_afield, buff_dA)
+    c_copy!(Afield, buff_afield)
 
     Ffield += dF * stepIntegration
 
     smul!(buff_dM, stepIntegration)
-    add!(buff_mfield, buff_dM)
-    copy!(Mfield, buff_mfield)
+    c_add!(buff_mfield, buff_dM)
+    c_copy!(Mfield, buff_mfield)
 
     smul!(buff_dW, stepIntegration)
-    add!(buff_wfield, buff_dW)
-    copy!(Wfield, buff_wfield)
+    c_add!(buff_wfield, buff_dW)
+    c_copy!(Wfield, buff_wfield)
 
     # calulate stability criteria
 
-    sumabs_dA = sumabs(read(buff_dA))
-    sumabs_dM = sumabs(read(buff_dM))
-    sumabs_dF = sumabs(read(buff_dF))
-    sumabs_dW = sumabs(read(buff_dW))
+    sumabs_dA = sumabs(c_read(buff_dA))
+    sumabs_dM = sumabs(c_read(buff_dM))
+    sumabs_dF = sumabs(c_read(buff_dF))
+    sumabs_dW = sumabs(c_read(buff_dW))
 
     stableCondition = (sumabs_dA < epsilon) && (sumabs_dM < epsilon) #&& (sumabs_dF < epsilon) && (sumabs_dW < epsilon)
 
@@ -685,6 +604,8 @@ structA = sumabs(old_Afield .- Afield)
 structF = sumabs(old_Ffield .- Ffield)
 structW = sumabs(old_Wfield .- Wfield)
 structd = sumabs(old_directionfield .- directionfield)
+
+destroyComputeContext()
 
 return (t, timeToStable, stable, meanMField, meanAField, structM, structA, structF, structW, structd, outFileName)
 end #Function

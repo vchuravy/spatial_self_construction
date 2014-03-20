@@ -1,7 +1,3 @@
-import OpenCL
-const cl = OpenCL
-import cl.Buffer, cl.CmdQueue, cl.Context, cl.Program
-
 function getDeltaKernel{T <: FloatingPoint}(::Type{T})
     nType = T == Float64 ? "double" : "float"
 
@@ -48,13 +44,13 @@ function getDeltaKernel{T <: FloatingPoint}(::Type{T})
 end
 
 function deltaCL!{T <: FloatingPoint}(
-    row1_buff :: Buffer{T}, row2_buff :: Buffer{T}, row3_buff :: Buffer{T}, row4_buff :: Buffer{T}, row5_buff :: Buffer{T}, row6_buff :: Buffer{T},
-    out_buff :: Buffer{T},
+    row1_buff, row2_buff, row3_buff, row4_buff, row5_buff, row6_buff,
+    out_buff,
     r1 :: Real, r2 :: Real, r3 :: Real , r4 :: Real, r5 :: Real, r6 :: Real,
     d1 :: Int64, d2 :: Int64,
-    ctx :: Context, queue :: CmdQueue, program :: Program)
+    ctx, queue, program, :: Type{T})
 
-    k = cl.Kernel(program, "delta")
+    k = Kernel(program, "delta")
 
-    cl.call(queue, k, (d1,d2), nothing, row1_buff, row2_buff, row3_buff, row4_buff, row5_buff, row6_buff, out_buff, convert(T, r1), convert(T, r2), convert(T, r3), convert(T, r4), convert(T, r5), convert(T, r6), int32(d1), int32(d2))
+    call(queue, k, (d1,d2), nothing, row1_buff, row2_buff, row3_buff, row4_buff, row5_buff, row6_buff, out_buff, convert(T, r1), convert(T, r2), convert(T, r3), convert(T, r4), convert(T, r5), convert(T, r6), int32(d1), int32(d2))
 end

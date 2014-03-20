@@ -1,7 +1,3 @@
-import OpenCL
-const cl = OpenCL
-import cl.Buffer, cl.CmdQueue, cl.Context, cl.Program
-
 function getDiffusionKernel{T <: FloatingPoint}(:: Type{T})
         nType = T == Float64 ? "double" : "float"
         nOne = T == Float64 ? "1.0" : "1.0f"
@@ -116,16 +112,16 @@ function getDiffusionKernel{T <: FloatingPoint}(:: Type{T})
 end
 
 function diffusionCL!{T <: FloatingPoint}(
-    a_buff :: Buffer{T}, b_buff :: Buffer{T},
-    out_buff :: Buffer{T},
+    a_buff, b_buff,
+    out_buff,
     d1 :: Int64, d2 :: Int64,
-    ctx :: Context, queue :: CmdQueue, program :: Program)
+    ctx, queue, program, ::Type{T})
 
-    flow_buff = cl.Buffer(T, ctx, :rw, d1 * d2 * 8)
+    flow_buff = Buffer(T, ctx, :rw, d1 * d2 * 8)
 
-    kd = cl.Kernel(program, "diffusion")
-    kf = cl.Kernel(program, "flow")
+    kd = Kernel(program, "diffusion")
+    kf = Kernel(program, "flow")
 
-    cl.call(queue, kf, (d1,d2), nothing, b_buff, flow_buff, int32(d1), int32(d2))
-    cl.call(queue, kd, (d1,d2), nothing, a_buff, flow_buff, out_buff, int32(d1), int32(d2))
+    call(queue, kf, (d1,d2), nothing, b_buff, flow_buff, int32(d1), int32(d2))
+    call(queue, kd, (d1,d2), nothing, a_buff, flow_buff, out_buff, int32(d1), int32(d2))
 end

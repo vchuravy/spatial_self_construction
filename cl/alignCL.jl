@@ -1,7 +1,3 @@
-import OpenCL
-const cl = OpenCL
-import cl.Buffer, cl.CmdQueue, cl.Context, cl.Program
-
 function getAlignKernel{T <: FloatingPoint}(:: Type{T})
         nType = T == Float64 ? "double" : "float"
         nPi = T == Float64 ? "M_PI" : "M_PI_F"
@@ -92,12 +88,12 @@ function getAlignKernel{T <: FloatingPoint}(:: Type{T})
 end
 
 function alignCL!{T <: FloatingPoint}(
-    a_buff :: Buffer{T}, b_buff :: Buffer{T},
-    out_buff :: Buffer{T},
-    attraction :: Real, step :: Real, d1 :: Int64, d2 :: Int64,
-    ctx :: Context, queue :: CmdQueue, program :: Program)
+    a_buff, b_buff,
+    out_buff,
+    attraction :: T, step :: T, d1 :: Int64, d2 :: Int64,
+    ctx, queue, program)
 
-    k = cl.Kernel(program, "align")
+    k = Kernel(program, "align")
 
-    cl.call(queue, k, (d1,d2), nothing, a_buff, b_buff, out_buff, int32(d1), int32(d2), convert(T, attraction), convert(T, step))
+    call(queue, k, (d1,d2), nothing, a_buff, b_buff, out_buff, int32(d1), int32(d2), attraction, step)
 end

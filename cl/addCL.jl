@@ -1,7 +1,3 @@
-import OpenCL
-const cl = OpenCL
-import cl.Buffer, cl.CmdQueue, cl.Context, cl.Program
-
 function getAddKernel{T <: FloatingPoint}(::Type{T})
     nType = T == Float64 ? "double" : "float"
 
@@ -25,13 +21,13 @@ function getAddKernel{T <: FloatingPoint}(::Type{T})
 "
 end
 
-function addCL!{T <: FloatingPoint}(
-    a_buff :: Buffer{T}, b_buff :: Buffer{T},
-    out_buff :: Buffer{T},
+function addCL!(
+    a_buff, b_buff,
+    out_buff,
     d1 :: Int64, d2 :: Int64,
-    ctx :: Context, queue :: CmdQueue, program :: Program)
+    ctx, queue, program)
 
-    k = cl.Kernel(program, "add")
+    k = Kernel(program, "add")
 
-    cl.call(queue, k, d1 * d2, nothing, a_buff, b_buff, out_buff)
+    call(queue, k, d1 * d2, nothing, a_buff, b_buff, out_buff)
 end

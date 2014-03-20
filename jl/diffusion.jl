@@ -2,7 +2,6 @@
 #   transforms concs and dirality
 ###
 import NumericExtensions.negate!, NumericExtensions.divide!, NumericExtensions.add!, NumericExtensions.exp!
-require("jl/ocl_utils.jl")
 
 function flow(Pot :: Matrix)
     d1, d2 = size(Pot)

@@ -3,8 +3,6 @@
 # repulsion on hydrophobe given concentration of hydrophils
 ###
 
-require("jl/ocl_utils.jl")
-
 function potentialJl!{T <: FloatingPoint}(Afield ::  Array{T, 2}, Bfield ::  Array{T, 2}, Area :: Array{Number4{T},2}, Apot ::  Array{T, 2}, Bpot ::  Array{T, 2}, repulsion :: Real)
     d1, d2 = size(Afield)
 

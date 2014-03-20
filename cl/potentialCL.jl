@@ -1,6 +1,4 @@
-import OpenCL
-const cl = OpenCL
-import cl.Buffer, cl.CmdQueue, cl.Context, cl.Program
+#import OpenCL; const cl = OpenCL
 
 function getPotentialKernel{T <: FloatingPoint}(:: Type{T})
         nType = T == Float64 ? "double" : "float"
@@ -100,12 +98,12 @@ function getPotentialKernel{T <: FloatingPoint}(:: Type{T})
 end
 
 function potentialCL!{T <: FloatingPoint}(
-    a_buff :: Buffer{T}, b_buff :: Buffer{T}, area_buff :: Buffer{T},
-    aout_buff :: Buffer{T}, bout_buff :: Buffer{T},
-    repulsion :: Real, d1 :: Int64, d2 :: Int64,
-    ctx :: Context, queue :: CmdQueue, program :: Program)
+    a_buff, b_buff, area_buff,
+    aout_buff, bout_buff,
+    repulsion :: T, d1 :: Int64, d2 :: Int64,
+    ctx, queue, program)
 
-    k_p = cl.Kernel(program, "potential")
+    k_p = Kernel(program, "potential")
 
-    cl.call(queue, k_p, (d1,d2), nothing, a_buff, b_buff, area_buff, aout_buff, bout_buff, int32(d1), int32(d2), convert(T, repulsion))
+    call(queue, k_p, (d1,d2), nothing, a_buff, b_buff, area_buff, aout_buff, bout_buff, int32(d1), int32(d2), repulsion)
 end

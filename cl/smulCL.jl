@@ -1,7 +1,3 @@
-import OpenCL
-const cl = OpenCL
-import cl.Buffer, cl.CmdQueue, cl.Context, cl.Program
-
 function getSMulKernel{T <: FloatingPoint}(::Type{T})
     nType = T == Float64 ? "double" : "float"
 
@@ -27,12 +23,12 @@ function getSMulKernel{T <: FloatingPoint}(::Type{T})
 end
 
 function smulCL!{T <: FloatingPoint}(
-    s :: Real, a_buff :: Buffer{T},
-    out_buff :: Buffer{T},
+    s :: Real, a_buff,
+    out_buff,
     d1 :: Int64, d2 :: Int64,
-    ctx :: Context, queue :: CmdQueue, program :: Program)
+    ctx, queue, program, :: Type{T})
 
-    k = cl.Kernel(program, "smul")
+    k = Kernel(program, "smul")
 
-    cl.call(queue, k, d1 * d2, nothing, convert(T, s), a_buff, out_buff)
+    call(queue, k, d1 * d2, nothing, convert(T, s), a_buff, out_buff)
 end

@@ -2,7 +2,6 @@
 # transforms directionality
 ###
 import NumericExtensions.negate!, NumericExtensions.negate!, NumericExtensions.multiply!, NumericExtensions.subtract!, NumericExtensions.add!, NumericExtensions.map1!, NumericExtensions.SinFun, NumericExtensions.ModFun
-require("jl/ocl_utils.jl")
 
 function alignJl!(Conc :: Matrix, Dir :: Matrix, Newdir :: Matrix, attraction :: Real, step :: Real) #concentration and direction
     d1,d2 = size(Conc)

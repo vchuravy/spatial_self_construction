@@ -56,13 +56,13 @@ function determineCapabilities(cluster :: Bool = false, allow32Bit = false, forc
             println("Running simulation on CPU with OpenCL")
             devs = filter(has64Bit, cl.devices(:cpu))
             ctx = cl.Context(devs)
-            queue = CmdQueue(ctx)
+            queue = cl.CmdQueue(ctx)
             return (true, true, ctx, queue)
         elseif GPU_OCL
             println("Running simulation on GPU with OpenCL")
             devs = filter(has64Bit, cl.devices(:gpu))
             ctx = cl.Context(devs)
-            queue = CmdQueue(ctx)
+            queue = cl.CmdQueue(ctx)
             return (true, true, ctx, queue)
         else
             println("Running simulation on CPU")
@@ -76,7 +76,7 @@ function determineCapabilities(cluster :: Bool = false, allow32Bit = false, forc
             if any(map(has64Bit, cl.devices()))
                 devs = filter(has64Bit, cl.devices())
                 ctx = cl.Context([first(devs)])
-                queue = CmdQueue(ctx)
+                queue = cl.CmdQueue(ctx)
                 return (true, true, ctx, queue)
             else
                 warn("No OpenCL device with Float64 support found!")

@@ -1,7 +1,3 @@
-import OpenCL
-const cl = OpenCL
-import cl.Buffer, cl.CmdQueue, cl.Context, cl.Program
-
 function getDelta2Kernel{T <: FloatingPoint}(:: Type{T})
         nType = T == Float64 ? "double" : "float"
 
@@ -38,12 +34,12 @@ function getDelta2Kernel{T <: FloatingPoint}(:: Type{T})
 end
 
 function delta2CL!{T <: FloatingPoint}(
-    delta_buff :: Buffer{T}, af_buff :: Buffer{T}, bf_buff :: Buffer{T}, lap_buff :: Buffer{T},
-    out_buff :: Buffer{T},
+    delta_buff, af_buff, bf_buff, lap_buff,
+    out_buff,
     decay :: Real, d1 :: Int64, d2 :: Int64,
-    ctx :: Context, queue :: CmdQueue, program :: Program)
+    ctx, queue, program, :: Type{T})
 
-    k = cl.Kernel(program, "delta2")
+    k = Kernel(program, "delta2")
 
-    cl.call(queue, k, (d1,d2), nothing, delta_buff, af_buff, bf_buff, lap_buff, out_buff, int32(d2), convert(T, decay))
+    call(queue, k, (d1,d2), nothing, delta_buff, af_buff, bf_buff, lap_buff, out_buff, int32(d2), convert(T, decay))
 end

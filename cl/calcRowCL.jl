@@ -1,7 +1,3 @@
-import OpenCL
-const cl = OpenCL
-import cl.Buffer, cl.CmdQueue, cl.Context, cl.Program
-
 function getRowKernel{T <: FloatingPoint}(::Type{T})
     nType = T == Float64 ? "double" : "float"
 
@@ -42,12 +38,12 @@ function getRowKernel{T <: FloatingPoint}(::Type{T})
 end
 
 function calcRowCL!{T <: FloatingPoint}(
-    a_buff :: Buffer{T}, b_buff :: Buffer{T}, c_buff :: Buffer{T}, d_buff :: Buffer{T},
-    out_buff :: Buffer{T},
+    a_buff, b_buff, c_buff, d_buff,
+    out_buff,
     a :: Real, b :: Real, c :: Real, d :: Real, d1 :: Int64, d2 :: Int64,
-    ctx :: Context, queue :: CmdQueue, program :: Program)
+    ctx, queue, program, ::Type{T})
 
-    k = cl.Kernel(program, "calcRow")
+    k = Kernel(program, "calcRow")
 
-    cl.call(queue, k, (d1,d2), nothing, a_buff, b_buff, c_buff, d_buff, out_buff, int32(d1), int32(d2), convert(T, a), convert(T, b), convert(T, c), convert(T, d))
+    call(queue, k, (d1,d2), nothing, a_buff, b_buff, c_buff, d_buff, out_buff, int32(d1), int32(d2), convert(T, a), convert(T, b), convert(T, c), convert(T, d))
 end

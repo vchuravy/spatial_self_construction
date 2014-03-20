@@ -1,7 +1,3 @@
-import OpenCL
-const cl = OpenCL
-import cl.Buffer, cl.CmdQueue, cl.Context, cl.Program
-
 function getAreaKernel{T <: FloatingPoint}(:: Type{T})
         nType = T == Float64 ? "double" : "float"
         nPi = T == Float64 ? "M_PI" : "M_PI_F"
@@ -49,14 +45,14 @@ function getAreaKernel{T <: FloatingPoint}(:: Type{T})
 end
 
 function areaCL!{T <: FloatingPoint}(
-    d_buff :: Buffer{T},
-    area_buff :: Buffer{T}, 
+    d_buff,
+    area_buff,
     long :: Real,
-    d1 :: Int, d2 :: Int, 
-    ctx :: Context, queue :: CmdQueue, program :: Program)
+    d1 :: Int, d2 :: Int,
+    ctx, queue, program, :: Type{T})
 
-    k_a = cl.Kernel(program, "area")
+    k_a = Kernel(program, "area")
 
     short = one(T)
-    cl.call(queue, k_a, d1*d2, nothing, d_buff, area_buff, convert(T, long), short)
+    call(queue, k_a, d1*d2, nothing, d_buff, area_buff, convert(T, long), short)
 end

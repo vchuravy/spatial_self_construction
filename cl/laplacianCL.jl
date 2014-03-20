@@ -1,7 +1,3 @@
-import OpenCL
-const cl = OpenCL
-import cl.Buffer, cl.CmdQueue, cl.Context, cl.Program
-
 function getLaplacianKernel{T <: FloatingPoint}(:: Type{T})
         nType = T == Float64 ? "double" : "float"
 
@@ -53,13 +49,13 @@ function getLaplacianKernel{T <: FloatingPoint}(:: Type{T})
 "
 end
 
-function laplacianCL!{T <: FloatingPoint}(
-    a_buff :: Buffer{T},
-    out_buff :: Buffer{T},
+function laplacianCL!(
+    a_buff,
+    out_buff,
     d1 :: Int64, d2 :: Int64,
-    ctx :: Context, queue :: CmdQueue, program :: Program)
+    ctx, queue, program)
 
-    k = cl.Kernel(program, "laplacian")
+    k = Kernel(program, "laplacian")
 
-    cl.call(queue, k, (d1,d2), nothing, a_buff, out_buff, int32(d1), int32(d2))
+    call(queue, k, (d1,d2), nothing, a_buff, out_buff, int32(d1), int32(d2))
 end
