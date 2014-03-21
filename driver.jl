@@ -75,11 +75,11 @@ function runCluster(fileName, outFolder = "results"; configName = "cluster_confi
             if (length(jobs) == 0) && (length(working_on) == 0)
                 running = false
             else
-                sleep(2.0)
-                yield()
-                timedwait(20.0) do
-                    isempty(working_on) || any(map(isready, working_on))
-                end
+		sleep(30.0)
+	    	# timedwait(1.0, pollint=0.5) do
+		#	rrefs = values(working_on)
+		#	isempty(rrefs) || any(isready, rrefs)
+		# end
             end
         end
     catch e
