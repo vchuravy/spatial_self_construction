@@ -75,7 +75,11 @@ function runCluster(fileName, outFolder = "results"; configName = "cluster_confi
             if (length(jobs) == 0) && (length(working_on) == 0)
                 running = false
             else
-               timedwait(anyready, 120.0, pollint=0.5)
+                sleep(2.0)
+                yield()
+                timedwait(20.0) do
+                    isempty(working_on) || any(map(isready, working_on))
+                end
             end
         end
     catch e
@@ -84,15 +88,6 @@ function runCluster(fileName, outFolder = "results"; configName = "cluster_confi
         df = resultsToDataFrame(results, out)
         show(df)
     end
-end
-
-function anyready()
-    for rref in values(working_on)
-        if isready(rref)
-            return true
-        end
-    end
-    return isempty(working_on)
 end
 
 function parseClusterConfig(filePath)
