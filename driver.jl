@@ -108,7 +108,7 @@ function parseClusterConfig(filePath)
                 warn("Can't handle $name")
                 Dict[]
             end
-        times = if haskey(subvals, "times")
+        times = if haskey(subconfig, "times")
                     subconfig["times"]
                 else
                     1
