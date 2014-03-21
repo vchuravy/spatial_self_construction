@@ -108,7 +108,14 @@ function parseClusterConfig(filePath)
                 warn("Can't handle $name")
                 Dict[]
             end
-        append!(vals, subvals)
+        times = if haskey(subvals, "times")
+                    subconfig["times"]
+                else
+                    1
+                end
+        for i in 1:times
+            append!(vals, subvals)
+        end
     end
     return vals
 end
@@ -124,17 +131,11 @@ function parsePunchLocal(config)
 end
 
 function parsePunchRandom(config)
-    times = config["times"]
     alpha = config["alpha"]
     beta = config["beta"]
     ranges = map(torange, (alpha, beta))
 
-    vals = Dict[]
     dist = createDisturbance(:punch_random, ranges)
-    for i in 1:times
-        append!(vals, dist)
-    end
-    return vals
 end
 
 function parseGaussianBlur(config)
