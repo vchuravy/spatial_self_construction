@@ -1,5 +1,6 @@
 {
-    "punch_random" : {
+    "example_punch_random.csv" : {
+        "name" : "punch_random",
         "times" : 200,
         "alpha" : 1.0,
         "beta": {

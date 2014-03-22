@@ -166,3 +166,16 @@ end
 function torange(c :: Real)
     return c
 end
+
+function writedlm_row(io::IO, row, dlm = ',')
+    pb = PipeBuffer()
+    state = start(row)
+    while !done(row, state)
+        (x, state) = next(row, state)
+        Base.writedlm_cell(pb, x, dlm)
+        done(row, state) ? write(pb,'\n') : print(pb,dlm)
+    end
+    (nb_available(pb) > (16*1024)) && write(io, takebuf_array(pb))
+    write(io, takebuf_array(pb))
+    nothing
+end

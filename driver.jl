@@ -7,6 +7,7 @@ include("config.jl")
 include("utils.jl")
 
 jobs = Dict[]
+resultStreams = Dict()
 working_on = Dict{Int, RemoteRef}()
 idle = Int[]
 
@@ -21,9 +22,7 @@ function runCluster(fileName, outFolder = "results"; configName = "cluster_confi
 
     config = matread("data/$(fileName).mat")
 
-    results = Any[]
-
-    jobs = parseClusterConfig(configName)
+    jobs, resultStreams = parseClusterConfig(configName, out)
 
     # Setup everything
     nc, ng, c_ocl = determineWorkload()
@@ -56,8 +55,8 @@ function runCluster(fileName, outFolder = "results"; configName = "cluster_confi
             for (w, rref) in working_on
                 if isready(rref)
                     rref = pop!(working_on, w) # remove from dict
-                    result = fetch(rref) # fetch Remote Reference
-                    push!(results, result) # store the result
+                    fN, params, result = fetch(rref) # fetch Remote Reference
+                    writedlm_row(resultStreams[fN], [params, result...])
                     push!(idle, w) # mark worker as idle
                 end
             end
@@ -85,39 +84,48 @@ function runCluster(fileName, outFolder = "results"; configName = "cluster_confi
     catch e
         println(e)
     finally
-        df = resultsToDataFrame(results, out)
-        show(df)
+        map(close, values(resultStreams))
     end
 end
 
-function parseClusterConfig(filePath)
+function parseClusterConfig(filePath, outputPath)
     config = JSON.parse(open(filePath, "r"))
-    vals = Dict[]
+    vals = (String, Dict)[]
+    outputStreams = Dict()
 
-    for (name,  subconfig) in config
-        subvals =
-            if name == "punch_local"
-                parsePunchLocal(subconfig)
-            elseif name == "punch_random"
-                parsePunchRandom(subconfig)
-            elseif name == "gaussian_blur"
-                parseGaussianBlur(subconfig)
-            elseif name == "global"
-                parseGlobal(subconfig)
-            else
-                warn("Can't handle $name")
-                Dict[]
-            end
-        times = if haskey(subconfig, "times")
-                    subconfig["times"]
+    for (fileName,  subconfig) in config
+        if haskey(subconfig, "name")
+            name = subconfig["name"]
+            parameterNames, subvals =
+                if name == "punch_local"
+                    parsePunchLocal(subconfig)
+                elseif name == "punch_random"
+                    parsePunchRandom(subconfig)
+                elseif name == "gaussian_blur"
+                    parseGaussianBlur(subconfig)
+                elseif name == "global"
+                    parseGlobal(subconfig)
                 else
-                    1
+                    warn("Can't handle $name")
+                    Dict[]
                 end
-        for i in 1:times
-            append!(vals, subvals)
+            times = if haskey(subconfig, "times")
+                        subconfig["times"]
+                    else
+                        1
+                    end
+            subvals = [(fileName, v) for v in subvals]
+            for i in 1:times
+                append!(vals, subvals)
+            end
+            out = open("$outputPath/$fileName", "w")
+            writedlm_row(out, ["name", parameterNames, "time", "timeToStable", "stable", "meanMField", "meanAField", "structM", "structA", "structF", "structW", "structD", "fileName"])
+            outputStreams[fileName] = out
+        else
+            warn("$fileName has no disturbance assign to it.")
         end
     end
-    return vals
+    return (vals, outputStreams)
 end
 
 function parsePunchLocal(config)
@@ -127,7 +135,7 @@ function parsePunchLocal(config)
     beta = config["beta"]
 
     ranges = map(torange, (x, y, alpha, beta))
-    createDisturbance(:punch_local, ranges)
+    (["x", "y", "alpha", "beta"], createDisturbance(:punch_local, ranges))
 end
 
 function parsePunchRandom(config)
@@ -135,12 +143,12 @@ function parsePunchRandom(config)
     beta = config["beta"]
     ranges = map(torange, (alpha, beta))
 
-    dist = createDisturbance(:punch_random, ranges)
+    (["alpha", "beta"], createDisturbance(:punch_random, ranges))
 end
 
 function parseGaussianBlur(config)
     sigma = config["sigma"]
-    createDisturbance1(:gaussian_blur, torange(sigma))
+    (["sigma"], createDisturbance1(:gaussian_blur, torange(sigma)))
 end
 
 function parseGlobal(config)
@@ -148,43 +156,5 @@ function parseGlobal(config)
     sig = config["sig"]
 
     ranges = map(torange, (mu, sig))
-    createDisturbance(:global, ranges)
+    (["mu", "sig"], createDisturbance(:global, ranges))
 end
-
-function resultsToDataFrame(results, folder)
-    Name = Array(Any,0)
-    Param = Array(Any,0)
-    T = Array(Float64,0)
-    TS = Array(Float64,0)
-    S = Array(Bool,0)
-    MM = Array(Float64,0)
-    MA = Array(Float64,0)
-    SM = Array(Float64,0)
-    SA = Array(Float64,0)
-    SF = Array(Float64,0)
-    SW = Array(Float64,0)
-    SD = Array(Float64,0)
-    FN = Array(Any,0)
-
-    for ((name, p), value) in results
-        t, ts, s, mm, ma, sm, sa, sf, sw, sd, fn = value
-        push!(Name, name)
-        push!(Param, p)
-        push!(T, t)
-        push!(TS, ts)
-        push!(S, s)
-        push!(MM, mm)
-        push!(MA, ma)
-        push!(SM, sm)
-        push!(SA, sa)
-        push!(SF, sf)
-        push!(SW, sw)
-        push!(SD, sd)
-        push!(FN, fn)
-    end
-    data = DataFrame(name=Name, parameter=Param, time = T, timeToStable = TS, stable = S, meanM = MM, meanA = MA, structM = SM, structA = SA, structF = SF, structW = SW, structD = SD, fileName = FN)
-    writetable("$folder/data.csv", data)
-    return data
-end
-
-

@@ -1,5 +1,6 @@
 {
-    "global" : {
+    "example_global.csv" : {
+        "name" : "global",
         "times" : 10,
         "mu" : 1.0,
         "sig" : 1.0

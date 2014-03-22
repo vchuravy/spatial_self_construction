@@ -1,5 +1,6 @@
 {
-    "punch_local" : {
+    "all_punch_local-25-21.csv" : {
+        "name" : "punch_local",
         "x" : 25,
         "y" : 21,
         "alpha" : {
@@ -13,7 +14,8 @@
             "step" : 0.1
         }
     },
-    "punch_local" : {
+    "all_punch_local-21-25.csv" : {
+        "name" : "punch_local",
         "x" : 21,
         "y" : 25,
         "alpha" : {
@@ -27,14 +29,16 @@
             "step" : 0.1
         }
     },
-    "gaussian_blur" : {
+    "all_gaussian_blur.csv" : {
+        "name" : "gaussian_blur",
         "sigma": {
             "min" : 0.0,
             "max" : 3.0,
             "step" : 0.1
         }
     },
-    "global" : {
+    "all_global.csv" : {
+        "name" : "global",
         "mu" : {
             "min" : -1.0,
             "max" :  1.0,

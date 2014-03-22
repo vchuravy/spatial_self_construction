@@ -1,12 +1,13 @@
 {
-    "punch_local" : {
+    "example_punch_local.csv" : {
+        "name" : "punch_local",
         "x" : 20,
         "y" : 25,
         "alpha" : 1.0,
         "beta": {
             "min" : 1.0,
             "max" : 2.0,
-            "step" : 0.1
+            "step" : 1.0
         }
     }
 }

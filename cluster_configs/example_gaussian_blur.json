@@ -1,5 +1,6 @@
 {
-    "gaussian_blur" : {
+    "example_gaussian_blur.csv" : {
+        "name" : "gaussian_blur",
         "sigma": {
             "min" : 0.0,
             "max" : 3.0,

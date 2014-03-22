@@ -1,13 +1,9 @@
 include("main.jl")
 
-function runProcess(config, dist, out, loadTime)
+function runProcess(config, val, out, loadTime)
+    f, dist = val
+
     r = @time main(config, dist, true, loadTime = loadTime, resultFolder=out)
-    if length(dist) == 1
-        time, value = first(dist)
-        name = first(value)
-        args = value[2:end]
-        return ((name, args), r)
-    else
-        return ((nothing, dist), r)
-    end
+    params = first(values(dist))
+    return (f, params, r)
 end
