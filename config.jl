@@ -47,6 +47,7 @@ baseConfig = {
     "visInterval"           => 5,
     "storeStep"             => 100,
     "epsilon"               => 0.01,
+    "deathEpsilon"          => 0.01,
     "stableTime"            => 5000,
     "v_mR"                  => 180, # membraneRadius
     "v_mT"                  => 170,  # membraneThickness

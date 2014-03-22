@@ -119,7 +119,7 @@ function parseClusterConfig(filePath, outputPath)
                 append!(vals, subvals)
             end
             out = open("$outputPath/$fileName", "w")
-            writedlm_row(out, ["name", parameterNames, "time", "timeToStable", "stable", "meanMField", "meanAField", "structM", "structA", "structF", "structW", "structD", "fileName"])
+            writedlm_row(out, ["name", parameterNames, "time", "timeToStable", "valueOfInterest", "stable", "meanMField", "meanAField", "structM", "structA", "structF", "structW", "structD", "fileName"])
             outputStreams[fileName] = out
         else
             warn("$fileName has no disturbance assign to it.")

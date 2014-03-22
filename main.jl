@@ -613,9 +613,19 @@ structF = sumabs(old_Ffield .- Ffield)
 structW = sumabs(old_Wfield .- Wfield)
 structd = sumabs(old_directionfield .- directionfield)
 
+valueOfInterest =   if stable
+                        if (meanMField >= deathEpsilon) || (meanAField >= deathEpsilon)
+                            timeToStable # stable and living
+                        else
+                            -timeToStable # death through diffusion and decay
+                        end
+                    elseif isnan(meanMField) || isnan(meanAField) # explosion
+                        - t
+                    end
+
 destroyComputeContext()
 
-return (t, timeToStable, stable, meanMField, meanAField, structM, structA, structF, structW, structd, outFileName)
+return (t, timeToStable, valueOfInterest, stable, meanMField, meanAField, structM, structA, structF, structW, structd, outFileName)
 end #Function
 
 function fsm(x, y, k)
