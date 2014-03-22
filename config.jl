@@ -42,11 +42,11 @@ end
 baseConfig = {
     "fieldSize"             => 2400,
     "fieldRes"              => 40,
-    "timeTotal"             => 5000,
+    "timeTotal"             => 15000,
     "stepIntegration"       => 0.5,
     "visInterval"           => 5,
     "storeStep"             => 100,
-    "epsilon"               => 0.001,
+    "epsilon"               => 0.01,
     "stableTime"            => 5000,
     "v_mR"                  => 180, # membraneRadius
     "v_mT"                  => 170,  # membraneThickness

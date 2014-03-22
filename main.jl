@@ -480,7 +480,8 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
         timeToStable = t
     elseif stable && !stableCondition
         stable = false
-        warn("Lost stability")
+        tT = t + timeTotal
+        println("Lost stability")
     end
 
     #save values for visualization
