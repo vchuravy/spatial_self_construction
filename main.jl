@@ -282,7 +282,28 @@ meanAField = mean(Afield)
 tT = timeTotal
 outFileName = ""
 
+###
+# Set up dynamic precision
+###
+
+precision = 1.0
+skipFlag = false
+
+previous_Mfield = copy(Mfield)
+previous_Ffield = copy(Ffield)
+previous_Wfield = copy(Wfield)
+previous_Afield = copy(Afield)
+previous_directionfield = copy(directionfield)
+
+tx = Float64[]
+
 while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
+    previous_Mfield = copy(Mfield)
+    previous_Ffield = copy(Ffield)
+    previous_Wfield = copy(Wfield)
+    previous_Afield = copy(Afield)
+    previous_directionfield = copy(directionfield)
+
 	if t in keys(disturbances)
 		val = disturbances[t]
 		method = first(val)
@@ -450,19 +471,34 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
     dT = 0
 
     # update values
-    smul!(dA, stepIntegration)
+    smul!(dA, (stepIntegration / precision))
     c_add!(buff_Afield, dA)
     c_copy!(Afield, buff_Afield)
 
-    Ffield += dF * stepIntegration
+    Ffield += dF * (stepIntegration / precision)
 
-    smul!(dM, stepIntegration)
+    smul!(dM, (stepIntegration / precision))
     c_add!(buff_Mfield, dM)
     c_copy!(Mfield, buff_Mfield)
 
-    smul!(dW, stepIntegration)
+    smul!(dW, (stepIntegration / precision))
     c_add!(buff_Wfield, dW)
     c_copy!(Wfield, buff_Wfield)
+
+    if any(Mfield .< 0) || any(Afield .< 0) || any(Ffield .< 0) || any(Wfield .< 0)
+        warn("Integration error at t=$t increase precision from $precision to $(2 * precision)")
+        precision = 2 * precision
+
+        Mfield = copy(previous_Mfield)
+        Ffield = copy(previous_Ffield)
+        Wfield = copy(previous_Wfield)
+        Afield = copy(previous_Afield)
+        directionfield = copy(previous_directionfield)
+        skipFlag = true
+    elseif (t % stepIntegration == 0) && precision > 1.0
+        warn("Resetting precision to 1.0")
+        precision = 1.0
+    end
 
     # calulate stability criteria
 
@@ -503,14 +539,14 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
       push!(history_dir, directionfield)
     end
 
+    push!(tx, t)
+
     if enableVis && (t % visInterval == 0)
         if !isready(gui_rref)
             println()
             println("Waiting for GUI to be initialized.")
             @time wait(gui_rref)
         end
-
-        tx = [1:stepIntegration:t]
 
         @spawnat guiproc begin
           hold(false)
@@ -558,7 +594,11 @@ while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
     end
 
     yield() # to be able to answer question about the status
-    t += stepIntegration
+    if !skipFlag
+        t += (stepIntegration / precision)
+    else
+        skipFlag = false
+    end
 end # While
 
 ###
