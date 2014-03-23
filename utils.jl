@@ -148,9 +148,8 @@ end
 function createDisturbance1(name :: Symbol, range)
     vals = Dict[]
 
-    @nloops 1 i range begin
-        args = @ntuple 1 i
-        push!(vals, {100.0 => [name, args...]})
+    for i in range
+        push!(vals, {100.0 => [name, i]})
     end
 
     return vals
