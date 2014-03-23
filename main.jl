@@ -297,7 +297,7 @@ previous_directionfield = copy(directionfield)
 
 tx = Float64[]
 
-while (t <= tT) && !isnan(meanMField) && !isnan(meanAField)
+while (t <= tT) && (meanAField < 1.0) !isnan(meanMField) && !isnan(meanAField)
     previous_Mfield = copy(Mfield)
     previous_Ffield = copy(Ffield)
     previous_Wfield = copy(Wfield)
@@ -659,7 +659,7 @@ valueOfInterest =   if stable
                         else
                             -timeToStable # death through diffusion and decay
                         end
-                    elseif isnan(meanMField) || isnan(meanAField) # explosion
+                    elseif (meanAField >= 1.0) || isnan(meanMField) || isnan(meanAField) # explosion
                         - t
                     end
 
