@@ -1,4 +1,12 @@
-# License
+# Documentation
+
+If you find anything missing in the documentation or find yourself unable to reproduce results please feel free to contact < v [dot] churavy [at] gmail [dot] com > or file an issue here on Github.
+
+# Implementation
+
+The implementation was done in Julia and OpenCL. If your computer does not support OpenCL the computation will be done purely in Julia. All our computations have been done for performance reasons with the OpenCL version.
+
+## License
 The source for this project is published under the MIT license.
 
 # Reproducing experiments.
@@ -187,4 +195,34 @@ Where name and possible arguments are given below and time is the value when the
    - tearsize:
 
 ## Running tests as a cluster
-TODO
+
+To run multiple tests simultaneously you have to provide a configuration file (examples can be found under cluster_configs)
+
+### Layout
+
+```json
+{
+  "fileName.csv" : {
+    "name" : "disturbance name",
+    "parameter1" : value,
+    "parameter2" : {
+            "min" : 0.0,
+            "max" : 2.0,
+            "step" : 0.5
+        }
+  }
+}
+```
+In this case parameter1 is kept constant and parameter2 is varied over the range 0.0 to 2.0 with a step of 0.5
+
+A special parameter called "times" is used for stochastic disturbances, it specifies how often each disturbance should be tested.
+
+### Executing
+
+```
+julia -L driver.jl -e 'runCluster("fileName", "outputFolder",  configName="cluster_configs/example_global.json", loadTime=12)
+```
+
+- outputFolder defaults to ./results
+- configName defaults to cluster_configs/all.json
+- loadTime defaults to -1 and thus to the last time step
