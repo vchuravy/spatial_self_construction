@@ -1,8 +1,8 @@
 MAT
 NumericExtensions
-ProgressMeter
 Datetime
 PyPlot
 OpenCL
 Distributions
-Images
+JSON
+Cartesian
