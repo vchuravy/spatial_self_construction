@@ -35,7 +35,7 @@ function apply_punch_down!(A, x0, y0, a, b)
 			    end
 			end
 
-function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bool = false, enableDirFieldVis = false, fileName = "", loadTime = nothing, allow32Bit = false, forceJuliaImpl = false, resultFolder="results")
+function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bool = false, fileName = "", loadTime = nothing, allow32Bit = false, forceJuliaImpl = false, resultFolder="results")
     useVis = enableVis && ((length(procs()) == 1) || (!(myid() in workers()))) && !cluster
     ###
     # Prepare GPU
@@ -58,7 +58,7 @@ function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bo
        @at_proc guiproc using PyPlot
     end
 
-    value = simulation(cluster, useVis, enableDirFieldVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, config, disturbances, guiproc, ctx, queue, rref, resultFolder)
+    value = simulation(cluster, useVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, config, disturbances, guiproc, ctx, queue, rref, resultFolder)
 
     ctx = nothing
     queue = nothing
@@ -66,7 +66,7 @@ function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bo
     return value
 end
 
-function simulation{T <: FloatingPoint}(cluster, enableVis, enableDirFieldVis, fileName, loadTime, USECL, :: Type{T}, config :: Dict, disturbances :: Dict, guiproc :: Int, ctx, queue, gui_rref, resultFolder)
+function simulation{T <: FloatingPoint}(cluster, enableVis, fileName, loadTime, USECL, :: Type{T}, config :: Dict, disturbances :: Dict, guiproc :: Int, ctx, queue, gui_rref, resultFolder)
 worker = (length(procs()) > 1) && (myid() in workers())
 
 
@@ -487,7 +487,16 @@ while (t <= tT) && (meanAField < 1.0) !isnan(meanMField) && !isnan(meanAField)
     c_add!(buff_Wfield, dW)
     c_copy!(Wfield, buff_Wfield)
 
-    if any(Mfield .< 0) || any(Afield .< 0) || any(Ffield .< 0) || any(Wfield .< 0)
+    # calulate stability criteria
+
+    sumabs_dA = sumabs(c_read(dA))
+    sumabs_dM = sumabs(c_read(dM))
+    sumabs_dF = sumabs(dF)
+    sumabs_dW = sumabs(c_read(dW))
+
+    negativeValues = any(Mfield .< 0) || any(Afield .< 0) || any(Ffield .< 0) || any(Wfield .< 0)
+
+    if negativeValues
         warn("Integration error at t=$t increase precision from $precision to $(2 * precision)")
         precision = 2 * precision
 
@@ -506,31 +515,24 @@ while (t <= tT) && (meanAField < 1.0) !isnan(meanMField) && !isnan(meanAField)
         end
     end
 
-    # calulate stability criteria
-
-    sumabs_dA = sumabs(c_read(dA))
-    sumabs_dM = sumabs(c_read(dM))
-    sumabs_dF = sumabs(dF)
-    sumabs_dW = sumabs(c_read(dW))
-
-    stableCondition = (sumabs_dA < epsilon) && (sumabs_dM < epsilon) #&& (sumabs_dF < epsilon) && (sumabs_dW < epsilon)
-
-    if !stable && stableCondition
-        println("reached a stable config after $t")
-        stable = true
-        tT = t + stableTime
-        timeToStable = t
-    elseif stable && !stableCondition
-        stable = false
-        tT = t + timeTotal
-        println("Lost stability")
-    end
-
     #save values for visualization
     meanAField = mean(Afield)
     meanMField = mean(Mfield)
 
     if !skipFlag
+        stableCondition = (sumabs_dA < epsilon) && (sumabs_dM < epsilon) #&& (sumabs_dF < epsilon) && (sumabs_dW < epsilon)
+
+        if !stable && stableCondition
+            println("reached a stable config after $t")
+            stable = true
+            tT = t + stableTime
+            timeToStable = t
+        elseif stable && !stableCondition
+            stable = false
+            tT = t + timeTotal
+            println("Lost stability")
+        end
+
         push!(Avec, meanAField)
         push!(Mvec, meanMField)
         push!(Fvec, mean(Ffield))
