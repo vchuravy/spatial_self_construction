@@ -289,6 +289,7 @@ outFileName = ""
 precision = 1.0
 skipFlag = false
 precisionCounter = 0
+bufferStep = 2 # Minimum 1.0 increase to allow for higher precision over a second timeStep
 
 previous_Mfield = copy(Mfield)
 previous_Ffield = copy(Ffield)
@@ -499,7 +500,7 @@ while (t <= tT) && (meanAField < 1.0) !isnan(meanMField) && !isnan(meanAField)
 
         # If we increase it for the first time
         if precisionCounter == 0
-            precisionCounter = precision
+            precisionCounter = bufferStep*precision
         else
             precisionCounter *= 2
         end
