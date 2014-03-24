@@ -288,6 +288,7 @@ outFileName = ""
 
 precision = 1.0
 skipFlag = false
+precisionCounter = 0
 
 previous_Mfield = copy(Mfield)
 previous_Ffield = copy(Ffield)
@@ -495,9 +496,13 @@ while (t <= tT) && (meanAField < 1.0) !isnan(meanMField) && !isnan(meanAField)
         Afield = copy(previous_Afield)
         directionfield = copy(previous_directionfield)
         skipFlag = true
-    elseif (t % stepIntegration == 0) && precision > 1.0
-        warn("Resetting precision to 1.0")
-        precision = 1.0
+
+        # If we increase it for the first time
+        if precisionCounter == 0
+            precisionCounter = precision
+        else
+            precisionCounter *= 2
+        end
     end
 
     # calulate stability criteria
@@ -597,9 +602,22 @@ while (t <= tT) && (meanAField < 1.0) !isnan(meanMField) && !isnan(meanAField)
 
     yield() # to be able to answer question about the status
     if !skipFlag
-        t += (stepIntegration / precision)
+        if precisionCounter > 0
+            precisionCounter -= 1
+            t += (stepIntegration / precision)
+        else
+            t += stepIntegration
+        end
     else
         skipFlag = false
+    end
+
+    if precisionCounter == 0 && precision > 1.0
+        if t % stepIntegration != 0
+            warn("t=$t and integration=$stepIntegration t % integration should be zero but it is. $(t%stepIntegration)")
+        end
+        warn("Resetting precision to 1.0 at t=$t")
+        precision = 1.0
     end
 end # While
 
