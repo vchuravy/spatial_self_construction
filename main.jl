@@ -524,22 +524,24 @@ while (t <= tT) && (meanAField < 1.0) !isnan(meanMField) && !isnan(meanAField)
     meanAField = mean(Afield)
     meanMField = mean(Mfield)
 
-    push!(Avec, meanAField)
-    push!(Mvec, meanMField)
-    push!(Fvec, mean(Ffield))
-    push!(Wvec, mean(Wfield))
-    push!(DAvec, sumabs_dA)
-    push!(DMvec, sumabs_dM)
+    if !skipFlag
+        push!(Avec, meanAField)
+        push!(Mvec, meanMField)
+        push!(Fvec, mean(Ffield))
+        push!(Wvec, mean(Wfield))
+        push!(DAvec, sumabs_dA)
+        push!(DMvec, sumabs_dM)
 
-    if (t % storeStep == 0)
-      push!(history_A, Afield)
-      push!(history_F, Ffield)
-      push!(history_M, Mfield)
-      push!(history_W, Wfield)
-      push!(history_dir, directionfield)
+        if (t % storeStep == 0)
+          push!(history_A, Afield)
+          push!(history_F, Ffield)
+          push!(history_M, Mfield)
+          push!(history_W, Wfield)
+          push!(history_dir, directionfield)
+        end
+
+        push!(tx, t)
     end
-
-    push!(tx, t)
 
     if enableVis && (t % visInterval == 0)
         if !isready(gui_rref)
