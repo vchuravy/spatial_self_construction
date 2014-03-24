@@ -630,6 +630,8 @@ if t > tT
   println("Time done")
 elseif isnan(meanMField) || isnan(meanAField)
    println("Found NaNs")
+elseif meanAField >= 1.0
+    println("Mean of Afield is $meanAField >= 1.0")
 end
 
 ###
