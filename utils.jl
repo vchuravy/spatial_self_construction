@@ -178,3 +178,20 @@ function writedlm_row(io::IO, row, dlm = ',')
     write(io, takebuf_array(pb))
     nothing
 end
+
+function apply_punch_down!(A, x0, y0, a, b)
+                d1, d2 = size(A)
+                @assert x0 in 1:d1
+                @assert y0 in 1:d2
+                #dist(x, y) = sqrt((x - x0)^2 + (y-y0)^2)
+                #dist(x, y) = abs(x-x0) + abs(y-y0)
+                dist(x, y) = floor(sqrt((x - x0)^2 + (y-y0)^2))
+                #punch(d) = 1- sech(1/b * d) ^ a
+                punch(x)=a*exp(-x^2/(2*b^2))+1
+                for j in 1:d2
+                    for i in 1:d1
+                        d = dist(i, j)
+                        A[i,j] *= punch(d)
+                    end
+                end
+            end
