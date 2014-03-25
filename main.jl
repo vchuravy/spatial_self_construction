@@ -624,12 +624,13 @@ end
 ###
 try
     dt=now()
+    stack(X) = reshape(hcat(X...), fieldResY, fieldResX, length(X))
     result = {
-        "history_W" => hcat(history_W),
-        "history_A" => hcat(history_A),
-        "history_M" => hcat(history_M),
-        "history_F" => hcat(history_F),
-        "history_dir" => hcat(history_dir),
+        "history_W" => stack(history_W),
+        "history_A" => stack(history_A),
+        "history_M" => stack(history_M),
+        "history_F" => stack(history_F),
+        "history_dir" => stack(history_dir),
         "Avec" => Avec,
         "Fvec" => Fvec,
         "Mvec" => Mvec,
