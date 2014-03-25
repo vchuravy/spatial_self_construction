@@ -502,7 +502,7 @@ while (t <= tT) && (meanAField < 1.0) !isnan(meanMField) && !isnan(meanAField)
     meanMField = mean(Mfield)
 
     if !skipFlag
-        stableCondition = (sumabs_dA < epsilon) && (sumabs_dM < epsilon) #&& (sumabs_dF < epsilon) && (sumabs_dW < epsilon)
+        stableCondition = (sumabs_dA < epsilon / precision) && (sumabs_dM < epsilon / precision) #&& (sumabs_dF < epsilon) && (sumabs_dW < epsilon)
 
         if !stable && stableCondition
             println("reached a stable config after $t")
