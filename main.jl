@@ -482,6 +482,10 @@ while (t <= tT) && (meanAField < 1.0) !isnan(meanMField) && !isnan(meanAField)
         warn("Integration error at t=$t increase precision from $precision to $(2 * precision)")
         precision = 2 * precision
 
+        if precision > 1024
+            error("Precision just exceeded 1024 clearly something is wrong here.")
+        end
+
         Mfield = copy(previous_Mfield)
         Ffield = copy(previous_Ffield)
         Wfield = copy(previous_Wfield)
