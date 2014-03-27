@@ -641,7 +641,8 @@ try
         "Mvec" => Mvec,
         "Wvec" => Wvec,
         "DAvec" => DAvec,
-        "DMvec" => DMvec
+        "DMvec" => DMvec,
+        "tx" => tx
     }
     merge!(result, saveConfig(collect(keys(baseConfig))))
     prefix = if cluster
