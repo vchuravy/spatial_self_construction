@@ -119,9 +119,10 @@ else
     # fill in with autocatalyst
     A_circ = zeros(T, fieldResY, fieldResX)
 
-    for r in 0:0.01:mR
+    for r in 0:0.01:mR-1
         drawcircle!(A_circ, xc, yc, r)
     end
+
     Afield += avgA * A_circ
 
     Wfield -= (Mfield + Afield)
