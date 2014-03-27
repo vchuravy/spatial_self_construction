@@ -97,7 +97,7 @@ baseConfig = {
 }
 
 historyVars = ["history_W", "history_A", "history_M", "history_M_pot", "history_F", "history_dir"]
-dataVars = ["history_W", "history_A", "history_M", "history_M_pot", "history_F", "history_dir", "Avec", "Fvec", "Mvec", "Wvec", "DAvec", "DMvec"]
+dataVars = ["history_W", "history_A", "history_M", "history_M_pot", "history_F", "history_dir", "Avec", "Fvec", "Mvec", "Wvec", "DAvec", "DMvec", "tx"]
 
 function updateDependentValues()
     @eval begin

@@ -114,7 +114,7 @@ else
     for r in mR:0.01:(mR+mT-1)
         drawcircle!(M_circ, xc, yc, r)
     end
-    Mfield += avgM * M_circ + 0.01* rand(fieldResY, fieldResX)
+    Mfield += avgM * M_circ + 0.00001* rand(fieldResY, fieldResX)
 
     # fill in with autocatalyst
     A_circ = zeros(T, fieldResY, fieldResX)
