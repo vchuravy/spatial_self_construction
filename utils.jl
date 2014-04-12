@@ -171,7 +171,7 @@ function writedlm_row(io::IO, row, dlm = ',')
     state = start(row)
     while !done(row, state)
         (x, state) = next(row, state)
-        Base.writedlm_cell(pb, x, dlm)
+        Base.writedlm_cell(pb, x, dlm, false)
         done(row, state) ? write(pb,'\n') : print(pb,dlm)
     end
     (nb_available(pb) > (16*1024)) && write(io, takebuf_array(pb))
