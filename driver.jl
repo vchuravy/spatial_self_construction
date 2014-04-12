@@ -54,8 +54,12 @@ function runCluster(fileName, outFolder = "results"; configName = "cluster_confi
             for (w, rref) in working_on
                 if isready(rref)
                     rref = pop!(working_on, w) # remove from dict
-                    fN, params, result = fetch(rref) # fetch Remote Reference
-                    writedlm_row(resultStreams[fN], [params, result...])
+                    try
+                        fN, params, result = fetch(rref) # fetch Remote Reference
+                        writedlm_row(resultStreams[fN], [params, result...])
+                    catch e
+                        warn("Could not write $(fetch(rref)) because of $e")
+                    end
                     push!(idle, w) # mark worker as idle
                 end
             end
