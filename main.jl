@@ -13,17 +13,13 @@ include("config.jl")
 include("drawcircle.jl")
 include("gaussian_blur.jl")
 include("utils.jl")
+include("jl/functions.jl")
 
 ###
 # set up initial configuration
 ###
-function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bool = false, fileName = "", loadTime = nothing, allow32Bit = false, forceJuliaImpl = false, resultFolder="results")
+function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bool = false, fileName = "", loadTime = nothing, resultFolder="results")
     useVis = enableVis && ((length(procs()) == 1) || (!(myid() in workers()))) && !cluster
-    ###
-    # Prepare GPU
-    ###
-    const P64BIT, USECL, ctx, queue = determineCapabilities(cluster, allow32Bit, forceJuliaImpl)
-
     ###
     # Prepare GUI
     ###
@@ -40,17 +36,13 @@ function main(config=Dict(), disturbances=Dict(), cluster=false; enableVis :: Bo
        @at_proc guiproc using PyPlot
     end
 
-    value = simulation(cluster, useVis, fileName, loadTime, USECL, P64BIT ? Float64 : Float32, config, disturbances, guiproc, ctx, queue, rref, resultFolder)
+    value = simulation(Float64, cluster, useVis, fileName, loadTime, config, disturbances, guiproc, rref, resultFolder)
 
-    ctx = nothing
-    queue = nothing
-    gc()
     return value
 end
 
-function simulation{T <: FloatingPoint}(cluster, enableVis, fileName, loadTime, USECL, :: Type{T}, config :: Dict, disturbances :: Dict, guiproc :: Int, ctx, queue, gui_rref, resultFolder)
+function simulation{T <: FloatingPoint}(:: Type{T}, cluster, enableVis, fileName, loadTime, config :: Dict, disturbances :: Dict, guiproc :: Int, gui_rref, resultFolder)
 worker = (length(procs()) > 1) && (myid() in workers())
-
 
 # initialize membrane fields
 Afield = nothing
@@ -169,19 +161,6 @@ Mvec = T[]
 Wvec = T[]
 DAvec = T[]
 DMvec = T[]
-
-###
-# Decide which compute context should be used
-# Either OpenCL or Julia
-###
-
-if USECL
-    include("cl/functions.jl")
-else
-    include("jl/functions.jl")
-end
-
-createComputeContext(T, ctx, queue)
 
 ###
 # Prepare simulation
@@ -676,8 +655,6 @@ valueOfInterest =   if stable
                     elseif (meanAField >= 1.0) || isnan(meanMField) || isnan(meanAField) # explosion
                         - t
                     end
-
-destroyComputeContext()
 
 return (t, timeToStable, valueOfInterest, stable, meanMField, meanAField, structM, structA, structF, structW, structd, outFileName)
 end #Function

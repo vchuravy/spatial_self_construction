@@ -10,12 +10,6 @@ include("delta.jl")
 include("deltaStep2.jl")
 include("area.jl")
 
-function createComputeContext{T <: FloatingPoint}(:: Type{T}, ctx, queue)
-end
-
-function destroyComputeContext()
-end
-
 diffusion!(buff_Xfield, buff_Xpot, buff_Xlap) = diffusionJl!(buff_Xfield, buff_Xpot, buff_Xlap)
 potential!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion) = potentialJl!(buff_Xfield, buff_Yfield, buff_Zfield, buff_Xpot, buff_Ypot, repulsion)
 area!(buff_in, buff_out) = areaJl!(buff_in, buff_out, long_direction)
