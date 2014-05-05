@@ -1,12 +1,13 @@
-function LaPlacian(Ap :: Matrix)
+function la_placian(Ap :: Matrix)
     A_lap = similar(Ap)
 
-    LaPlacian!(A_lap, Ap)
+    la_placian!(A_lap, Ap)
+    return A_lap
 end
 
-function LaPlacian!(A_lap :: Matrix, Ap :: Matrix)
+function la_placian!(A_lap :: Matrix, Ap :: Matrix)
     D1, D2 = size(Ap)    
-    neighbourhood = zeros(3, 3)
+    neighbourhood = similar(Ap, (3,3))
     
     for j in 1:D2
         for i in 1:D1    

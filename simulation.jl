@@ -1,8 +1,9 @@
 module Simulation
 
 using ArrayViews
+using NumericExtensions
 
-export LaPlacian, LaPlacian!
+export la_placian, la_placian!, flow, flow!, diffusion, diffusion!
 
 function get_moore!(out, A, i, j, d1, d2)
     if 1 < i < d1 && 1 < j < d2 # We are away from the edges just use a view
@@ -36,6 +37,31 @@ function obtain_moore!(out, A, x, y, d1, d2)
     end
 end
 
+const centre_p = (2,2)
+const north = (1,2)
+const south = (3,2)
+const west  = (2,1)
+const east  = (2,3)
+const north_west = (1,1)
+const north_east = (1,3)
+const south_west = (3,1)
+const south_east = (3,3)
+
+centre(A) = A[centre_p...]
+
+const translate = [
+	centre_p => centre_p, 
+	north => south, 
+	south => north, 
+	west => east, 
+	east => west, 
+	north_west => south_east,
+	south_east => north_west,
+	north_east => south_west,
+	south_west => north_east]
+
 include("functions/LaPlacian.jl")
+include("functions/Flow.jl")
+include("functions/Diffusion.jl")
 
 end
