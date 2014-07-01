@@ -30,11 +30,7 @@ function diffusion!{T <: Real}(p_move :: Matrix{T}, concentration :: Matrix{T}, 
             # Collect the outflow from other cells
             ###
 
-            for u in 1:3
-                for v in 1:3
-                    @inbounds local_flow[u,v] = flow[u,v][translate[(u,v)]...]
-                end
-            end
+            translated_copy!(local_flow, flow)
 
             ###
             # Calculate the inflow based on the outflow from other cells into this on.
@@ -42,7 +38,7 @@ function diffusion!{T <: Real}(p_move :: Matrix{T}, concentration :: Matrix{T}, 
 
             inflow = 0
 
-            conc_neighbourhood[2,2] = 0 # Exclusive moore-neighbourhood
+            zero_centre!(conc_neighbourhood) # Exclusive moore-neighbourhood
 
             @simd for c in 1:9
                 @inbounds inflow += conc_neighbourhood[c] * local_flow[c]

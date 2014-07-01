@@ -16,10 +16,8 @@ function flow!{T <: Real}(out :: Matrix{Matrix{T}}, potential :: Matrix{T})
 
             get_moore!(p, potential, i, j, d1, d2)
 
-            centre = p[2,2]
-
-            p .-= centre
-            p[2, 2] = 0.0
+            p .-= centre(p)
+            zero_centre!(p)
 
             ###
             # Calculate the probability of flow out of a cell based on the potential difference

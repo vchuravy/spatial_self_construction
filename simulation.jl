@@ -3,7 +3,7 @@ module Simulation
 using ArrayViews
 using NumericExtensions
 
-export la_placian, la_placian!, flow, flow!, diffusion, diffusion!
+export la_placian, la_placian!, flow, flow!, diffusion, diffusion!, align, align!, area, area!, 
 
 function get_moore!(out, A, i, j, d1, d2)
     if 1 < i < d1 && 1 < j < d2 # We are away from the edges just use a view
@@ -47,18 +47,37 @@ const north_east = (1,3)
 const south_west = (3,1)
 const south_east = (3,3)
 
-centre(A) = A[centre_p...]
+centre(A :: Matrix) = A[centre_p...]
+zero_centre!{T <: Real}(A :: Matrix{T}) = A[centre_p...] = zero(T)
 
-const translate = [
-	centre_p => centre_p, 
-	north => south, 
-	south => north, 
-	west => east, 
-	east => west, 
-	north_west => south_east,
-	south_east => north_west,
-	north_east => south_west,
-	south_west => north_east]
+function translate(i,j)
+    ind = 10 - (i + ((j-1) * 3))
+    x = rem(ind -1 , 3) + 1
+    y = div(ind - x, 3) + 1
+    return tuple(x, y)
+end
+
+function translate_3x3!{T}(B :: Matrix{T}, A :: Matrix{T})
+    for i in 1:3
+        for j in 1:3
+            B[i,j] = A[translate(i,j)...]
+        end
+    end
+    return B
+end
+
+translate_3x3(A) = translate_3x3!(similar(A, (3, 3)), A)
+
+function translated_copy!{T}(B :: Matrix{T}, A :: Matrix{Matrix{T}})
+    for i in 1:3
+        for j in 1:3
+            B[i,j] = A[i,j][translate(i,j)...]
+        end
+    end
+    return B 
+end
+
+translated_access{T}(A :: Matrix{Matrix{T}}) = translated_copy!(Array(T, (3, 3)), A)
 
 include("functions/LaPlacian.jl")
 include("functions/Flow.jl")
