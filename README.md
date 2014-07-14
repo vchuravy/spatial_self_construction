@@ -1,3 +1,10 @@
+# Publications
+
+ - `ALIFE14`: **Quantifying robustness in a spatial model of metabolism-boundary co-construction** by 
+  *Eran Agmon, Alexander J Gates, Valentin Churavy and Randall D. Beer*
+   - The publication can be found at [MIT Press](http://mitpress.mit.edu/sites/default/files/titles/content/alife14/ch082.html)
+   - The version used is to produce the data is tagged as [alife14](https://github.com/vchuravy/spatial_self_construction/tree/alife14)
+
 # Documentation
 
 If you find anything missing in the documentation or find yourself unable to reproduce results please feel free to contact < v [dot] churavy [at] gmail [dot] com > or file an issue here on Github.
