@@ -1,4 +1,5 @@
 import Base.exp, Base./, Base.*, Base.-, Base.sum, Base.mod, Base.sin
+import Base: toarray
 #import NumericExtensions.fma
 
 immutable Number8{T <: FloatingPoint}
@@ -29,6 +30,8 @@ function Number8{T <: FloatingPoint}(s0 :: T, s1 :: T, s2 :: T, s3 :: T, s4 :: T
     Number8([s0, s1, s2, s3, s4, s5, s6, s7])
 end
 
+toarray(x :: Number4) = [x.s0, x.s1, x.s2, x.s3]
+toarray(x :: Number8) = x.array
 
 exp(x :: Number8) = Number8(exp(x.array))
 mod(n :: Number8, r :: Real) = Number8(mod(n.array, r))
