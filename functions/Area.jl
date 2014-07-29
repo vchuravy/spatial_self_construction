@@ -29,4 +29,5 @@ function area!{T <: Real}(out :: Array{T, 3}, direction :: Matrix{T}, LONG :: Re
                 out[3, i, j] = (area4-area3)/lps
                 out[4, i, j] = (area5-area4)/lps
         end
+    end
 end

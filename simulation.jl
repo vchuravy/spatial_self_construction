@@ -3,7 +3,7 @@ module Simulation
 using ArrayViews
 using NumericExtensions
 
-export la_placian, la_placian!, flow, flow!, diffusion, diffusion!, align, align!, area, area!, 
+export la_placian, la_placian!, flow, flow!, diffusion, diffusion!, align, align!, area, area!, potential!
 
 function get_moore!(out, A, i, j, d1, d2)
     if 1 < i < d1 && 1 < j < d2 # We are away from the edges just use a view
@@ -82,5 +82,6 @@ translated_access{T}(A :: Matrix{Matrix{T}}) = translated_copy!(Array(T, (3, 3))
 include("functions/LaPlacian.jl")
 include("functions/Flow.jl")
 include("functions/Diffusion.jl")
-
+include("functions/Area.jl")
+include("functions/Potential.jl")
 end

@@ -7,7 +7,7 @@ function potential!{T <: FloatingPoint}(apot ::  Matrix{T}, bpot ::  Matrix{T}, 
     d1, d2 = size(afield)
 
     r_af = similar(afield, (3,3))
-    local_bfield = similar(bfield (3,3))
+    local_bfield = similar(bfield, (3,3))
     local_area = similar(area, (3,3))
 
     selfRepulsion = 1*repulsion # making this lower than repulsion allows for neighbours to have relative potential, so increases the chance that the hydrophobe will flow.
@@ -23,24 +23,25 @@ function potential!{T <: FloatingPoint}(apot ::  Matrix{T}, bpot ::  Matrix{T}, 
             counter = 0
             for k in 1:3
                 for l in 1:3
-                counter += 1
-                if i == 2 && j == 2
-                    local_area[k,l] = zero(T)
-                    counter = 0
-                else
-                    local_area[k,l] = area[counter, translate(k,l)...]
+                    counter += 1
+                    if k == 2 && l == 2
+                        local_area[k,l] = zero(T)
+                        counter = 0
+                    else
+                        local_area[k,l] = area[counter, translate(k,l)...]
+                    end
                 end
             end
             
             r_af = multiply!(r_af, repulsion)
-            Bpot[i,j] = sum(multiply!(r_af, local_area)) + r_ij
+            bpot[i,j] = sum(multiply!(r_af, local_area)) + r_ij
 
-            result = center(local_bfield)
+            result = centre(local_bfield)
             counter = 0 
             for k in 1:3
                 for l in 1:3
                     counter +=1
-                    if i == 2 && j == 2
+                    if k == 2 && l == 2
                         counter = 0
                     else
                         result += local_bfield[k,l] * a_ij[counter]
@@ -48,7 +49,7 @@ function potential!{T <: FloatingPoint}(apot ::  Matrix{T}, bpot ::  Matrix{T}, 
                 end
             end
 
-            Apot[i,j] = repulsion * result
+            apot[i,j] = repulsion * result
         end
     end
 end
