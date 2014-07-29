@@ -30,7 +30,7 @@ function diffusion!{T <: Real}(p_move :: Matrix{T}, concentration :: Matrix{T}, 
             # Collect the outflow from other cells
             ###
 
-            translated_copy!(local_flow, flow)
+            translated_copy!(local_flow, flow_neighbourhood)
 
             ###
             # Calculate the inflow based on the outflow from other cells into this on.
