@@ -1,4 +1,4 @@
-function flow{T <: Real}(potential :: Matrix{T})
+function flow{T <: FloatingPoint}(potential :: Matrix{T})
     out = Array(Matrix{T}, size(potential))
 
     for i in 1:length(out)
@@ -9,7 +9,7 @@ function flow{T <: Real}(potential :: Matrix{T})
     return out
 end
 
-function flow!{T <: Real}(out :: Matrix{Matrix{T}}, potential :: Matrix{T})
+function flow!{T <: FloatingPoint}(out :: Matrix{Matrix{T}}, potential :: Matrix{T})
     d1, d2 = size(potential)
 
     p   = similar(potential, (3,3))

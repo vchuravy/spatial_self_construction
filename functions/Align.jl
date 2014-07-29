@@ -1,4 +1,4 @@
-function align{T <: Real}(concentration :: Matrix{T}, direction :: Matrix{T}, attraction :: Real, step :: Real)
+function align{T <: FloatingPoint}(concentration :: Matrix{T}, direction :: Matrix{T}, attraction :: Real, step :: Real)
     out = similar(concentration)
 
     align!(out, concentration, direction, attraction, step)
@@ -7,7 +7,7 @@ function align{T <: Real}(concentration :: Matrix{T}, direction :: Matrix{T}, at
 end
 
 
-function align!(out :: Matrix{T}, concentration :: Matrix{T}, direction :: Matrix{T}, attraction :: Real, step :: Real)
+function align!{T <: FloatingPoint}(out :: Matrix{T}, concentration :: Matrix{T}, direction :: Matrix{T}, attraction :: Real, step :: Real)
     d1,d2 = size(concentration)
 
     conc = similar(concentration, (3,3))
@@ -20,28 +20,24 @@ function align!(out :: Matrix{T}, concentration :: Matrix{T}, direction :: Matri
             get_moore!(conc, concentration, i, j, d1, d2)
             get_moore!(dir, direction, i, j, d1, d2)
 
-            old_dir = centre(dir)
+            θ = centre(dir)
 
             #Zero out middle term since we have a exclusive moore-neighbourhood
             zero_centre!(dir)
             zero_centre!(conc)
 
-            # Calculate dtheta being space constant on dir
-            # add!(negate!(dir), old_direction) # central_direction .- dir 
-            # map1!(ModFun(), dir, pi) # dir .% PI
-            # negate!(map1!(SinFun(), (multiply!(dir,2)))) # -sin((2 .* dir))
-
-            @smid for i in 1:9
-                @inbounds  dir[i] = conc[i] * (- sin(2 * mod(old_dir - dir[i], pi)))
+            # Calculate dθ
+            dθ = zero(T)
+            for k in 1:9
+                 dθ += conc[k] * -sin(2 * mod(θ - dir[k], π))
             end
-
-            dtheta = attraction * sum(dir) / 8 # attraction * sum(dir .* conc) / 8
+            dθ = attraction * dθ / 8.0
 
             #Calculate the new value
 
-            new_dir = old_dir + dtheta * step
+            θ += dθ * step
 
-            out[i,j] = mod(new_dir, pi) # make sure we are in [0, pi)
+            out[i,j] = mod(θ, π) # make sure we are in [0, π)
         end
     end
 end

@@ -1,4 +1,4 @@
-function diffusion{T <: Real}(concentration :: Matrix{T}, flow :: Matrix{Matrix{T}})
+function diffusion{T <: FloatingPoint}(concentration :: Matrix{T}, flow :: Matrix{Matrix{T}})
     p_move = similar(concentration)
 
     diffusion!(p_move, concentration, flow)
@@ -7,7 +7,7 @@ function diffusion{T <: Real}(concentration :: Matrix{T}, flow :: Matrix{Matrix{
 end
 
 
-function diffusion!{T <: Real}(p_move :: Matrix{T}, concentration :: Matrix{T}, flow :: Matrix{Matrix{T}}) #concentration and direction
+function diffusion!{T <: FloatingPoint}(p_move :: Matrix{T}, concentration :: Matrix{T}, flow :: Matrix{Matrix{T}}) #concentration and direction
     d1, d2 = size(concentration)
 
     conc_neighbourhood = similar(concentration, (3,3))

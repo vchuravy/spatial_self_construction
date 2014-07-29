@@ -1,4 +1,4 @@
-function area{T <: Real}(direction :: Matrix{T}, LONG :: Real)
+function area{T <: FloatingPoint}(direction :: Matrix{T}, LONG :: Real)
     d1, d2 = size(direction)
     out = similar(direction, (4,d1,d2))
 
@@ -6,7 +6,7 @@ function area{T <: Real}(direction :: Matrix{T}, LONG :: Real)
     return(out)
 end
 
-function area!{T <: Real}(out :: Array{T, 3}, direction :: Matrix{T}, LONG :: Real)
+function area!{T <: FloatingPoint}(out :: Array{T, 3}, direction :: Matrix{T}, LONG :: Real)
     D1, D2 = size(direction)
     SHORT = one(T)
     PI_4 = pi/4

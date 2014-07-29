@@ -104,7 +104,7 @@ println("Diffusion test result | exact: $test_alap_exact approx: $test_alap_appr
 # Laplacian
 
 flap_old = create(T)
-laplacian!(afield, flap_old)
+LaPlacianJl!(afield, flap_old)
 
 flap_new = sim.la_placian(afield)
 
@@ -112,3 +112,12 @@ test_flap_exact = all(map(==, flap_old, flap_new))
 test_flap_approx = all(map(isapprox, flap_old, flap_new))
 
 println("LaPlacian test result | exact: $test_flap_exact approx: $test_flap_approx")
+
+dfield_old = create(T)
+alignJl!(afield, dfield, dfield_old, 0.75, 0.5)
+dfield_new = sim.align(afield, dfield, 0.75, 0.5)
+
+test_dfield_exact = all(map(==, dfield_old, dfield_new))
+test_dfield_approx = all(map(isapprox, dfield_old, dfield_new))
+
+println("Align test result | exact: $test_dfield_exact approx: $test_dfield_approx")
