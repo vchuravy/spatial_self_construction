@@ -1,5 +1,9 @@
 function flow{T <: Real}(potential :: Matrix{T})
-    out = fill(similar(potential, (3,3)), size(potential))
+    out = Array(Matrix{T}, size(potential))
+
+    for i in 1:length(out)
+        out[i] = similar(potential, (3,3))
+    end
 
     flow!(out, potential)
     return out
@@ -9,42 +13,40 @@ function flow!{T <: Real}(out :: Matrix{Matrix{T}}, potential :: Matrix{T})
     d1, d2 = size(potential)
 
     p   = similar(potential, (3,3))
-    ge  = similar(p)
 
     for j in 1:d2
         for i in 1:d1
 
             get_moore!(p, potential, i, j, d1, d2)
 
-            p .-= centre(p)
-            zero_centre!(p)
+            p = p .- centre(p)
 
             ###
             # Calculate the probability of flow out of a cell based on the potential difference
+            # Normalized by 8
 
-            copy!(ge, p)
-
-            add!(negate!(exp!(p)), 1) # - e^p + 1
-            negate!(divide!(ge, p)) # - ge / ( - e ^ p + 1)
-
-            ###
-            # Remove NaN and normalize by 8
-            ###
-
-            @simd for i in 1:9
+            @simd for k in 1:length(p)
                 @inbounds begin
-                    if isnan(ge[i])
-                        ge[i] = 0.125 # 1/8
-                    else
-                        ge[i] /= 8.0
+                    p[k] = (- p[k] / (1.0 - exp(p[k]))) / 8.0
+                end
+            end
+
+            ###
+            # Remove NaN
+            ###
+
+            @simd for k in 1:length(p)
+                @inbounds begin
+                    if isnan(p[k])
+                        p[k] = 0.125 # 1/8
                     end
                 end
             end
 
             ### Exclusive moore-neighbourhood
-            ge[2, 2] = 0.0
+            zero_centre!(p)
 
-           copy!(out[i,j], ge)
+            copy!(out[i,j], p)
         end
     end
 end
