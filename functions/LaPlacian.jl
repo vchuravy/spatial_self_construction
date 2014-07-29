@@ -16,7 +16,7 @@ function la_placian!(A_lap :: Matrix, Ap :: Matrix)
             c = centre(neighbourhood)
             zero_centre!(neighbourhood)
             
-            A_lap[i,j] = -centre + sum(neighbourhood) / 8.0
+            A_lap[i,j] = -c + sum(neighbourhood) / 8.0
         end
     end
 end

@@ -100,3 +100,15 @@ test_alap_exact = all(map(==, alap_old, alap_new))
 test_alap_approx = all(map(isapprox, alap_old, alap_new))
 
 println("Diffusion test result | exact: $test_alap_exact approx: $test_alap_approx")
+
+# Laplacian
+
+flap_old = create(T)
+laplacian!(afield, flap_old)
+
+flap_new = sim.la_placian(afield)
+
+test_flap_exact = all(map(==, flap_old, flap_new))
+test_flap_approx = all(map(isapprox, flap_old, flap_new))
+
+println("LaPlacian test result | exact: $test_flap_exact approx: $test_flap_approx")
