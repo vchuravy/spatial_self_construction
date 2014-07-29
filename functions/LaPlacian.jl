@@ -1,11 +1,11 @@
-function la_placian{T <: FloatingPoint}(Ap :: Matrix{T})
+function la_placian{T <: FloatingPoint}(Ap :: Matrix{T}, diff :: Real)
     A_lap = similar(Ap)
 
     la_placian!(A_lap, Ap)
     return A_lap
 end
 
-function la_placian!{T <: FloatingPoint}(A_lap :: Matrix{T}, Ap :: Matrix{T})
+function la_placian!{T <: FloatingPoint}(A_lap :: Matrix{T}, Ap :: Matrix{T}, diff :: Real)
     D1, D2 = size(Ap)    
     neighbourhood = similar(Ap, (3,3))
     
@@ -16,7 +16,7 @@ function la_placian!{T <: FloatingPoint}(A_lap :: Matrix{T}, Ap :: Matrix{T})
             c = centre(neighbourhood)
             zero_centre!(neighbourhood)
             
-            A_lap[i,j] = -c + sum(neighbourhood) / 8.0
+            A_lap[i,j] = diff * (-c + sum(neighbourhood) / 8.0)
         end
     end
 end
