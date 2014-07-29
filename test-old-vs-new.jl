@@ -4,7 +4,7 @@ include("jl/functions.jl")
 import Simulation
 const sim = Simulation
 
-fieldRes = 10
+fieldRes = 100
 fieldResY = fieldRes
 fieldResX = fieldRes
 
@@ -19,8 +19,8 @@ function test_area(dfield, dir, name)
 	test_area_exact = fill(false, fieldRes, fieldRes)
 	test_area_approx = fill(false, fieldRes, fieldRes)
 
-	for i in 1:size(old_area, 1)
-		for j in 1:size(old_area, 2)
+	for i in 1:fieldRes
+		for j in 1:fieldRes
 			oa = toarray(old_area[i, j])
 			na = new_area[:, i, j]
 
@@ -62,3 +62,41 @@ test_apot_approx = all(map(isapprox, apot_old, apot_new))
 
 println("Potential test result | exact: $test_bpot_exact & $test_apot_exact approx: $test_bpot_approx & $test_apot_approx")
 
+# Test flow
+flow_new = sim.flow(apot_new)
+flow_old = flow(apot_new)
+
+test_flow_exact = fill(false, 8, fieldRes, fieldRes)
+test_flow_approx = fill(false, 8, fieldRes, fieldRes)
+
+flow_order = [sim.north_west, sim.north, sim.north_east, sim.east, sim.south_east, sim.south, sim.south_west, sim.west]
+
+
+for i in 1:fieldRes
+	for j in 1:fieldRes
+		of = toarray(flow_old[i, j])
+		nf = Array(Float64, 8)
+
+		for k in 1:8
+			nf[k] = flow_new[i,j][flow_order[k]...]
+		end
+
+		test_flow_exact[:, i, j] = map(==, of ,nf)
+		test_flow_approx[:, i, j] = map(isapprox, of, nf)
+	end
+end
+
+println("Flow test result | exact: $(all(test_flow_exact)) approx: $(all(test_flow_approx))")
+
+# Diffusion
+
+alap_old = create(T)
+alap_new = create(T)
+
+diffusionJl!(afield, apot_new, alap_old)
+sim.diffusion!(alap_new, afield, flow_new)
+
+test_alap_exact = all(map(==, alap_old, alap_new))
+test_alap_approx = all(map(isapprox, alap_old, alap_new))
+
+println("Diffusion test result | exact: $test_alap_exact approx: $test_alap_approx")
