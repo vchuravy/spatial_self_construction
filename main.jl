@@ -5,15 +5,14 @@
 using MAT
 using Datetime
 using Distributions
-import NumericExtensions.sumabs
-import NumericExtensions
-const ne = NumericExtensions
+import NumericExtensions: sumabs
 
 include("config.jl")
 include("drawcircle.jl")
 include("gaussian_blur.jl")
 include("utils.jl")
-include("jl/functions.jl")
+include("simulation.jl")
+using Simulation
 
 ###
 # set up initial configuration
@@ -45,11 +44,11 @@ function simulation{T <: FloatingPoint}(:: Type{T}, cluster, enableVis, fileName
 worker = (length(procs()) > 1) && (myid() in workers())
 
 # initialize membrane fields
-Afield = nothing
-Mfield = nothing
-Ffield = nothing
-Wfield = nothing
-directionfield = nothing
+Afield = Array(T, 1 , 1)
+Mfield = Array(T, 1 , 1)
+Ffield = Array(T, 1 , 1)
+Wfield = Array(T, 1 , 1)
+θfield = Array(T, 1 , 1)
 
 # Prepare the configuration values and load the default settings
 loadConfig(baseConfig)
@@ -85,20 +84,20 @@ if loadTime != nothing
         Afield = history_A[:,:,end]
         Mfield = history_M[:,:,end]
         Ffield = history_F[:,:,end]
-        directionfield = history_dir[:,:,end]
+        θfield = history_dir[:,:,end]
     else
         Wfield = history_W[:,:,loadTime]
         Afield = history_A[:,:,loadTime]
         Mfield = history_M[:,:,loadTime]
         Ffield = history_F[:,:,loadTime]
-        directionfield = history_dir[:,:,loadTime]
+        θfield = history_dir[:,:,loadTime]
     end
 else
     Afield = zeros(T, fieldResY, fieldResX)
     Mfield = zeros(T, fieldResY, fieldResX)
     Ffield = avgF * ones(T, fieldResY, fieldResX)
     Wfield = ones(T, fieldResY, fieldResX)
-    directionfield = pi/4 * ones(T, fieldResY, fieldResX)
+    θfield = pi/4 * ones(T, fieldResY, fieldResX)
 
     # draw membrane circle
     M_circ = zeros(T, fieldResY, fieldResX)
@@ -126,19 +125,19 @@ else
     # make directionality in a ring
     for q1 in 1:fieldResX
         for q2 in 1:fieldResY
-            directionfield[q2,q1] = atan((q2-yc)/(q1-xc))-pi/2
+            θfield[q2,q1] = atan((q2-yc)/(q1-xc))-pi/2
 
             # correct for 180 degrees
-            while directionfield[q2, q1] > pi
-                 directionfield[q2, q1] -= pi
+            while θfield[q2, q1] > pi
+                 θfield[q2, q1] -= pi
             end
-            while directionfield[q2, q1] <= 0 # ??? < 0
-                 directionfield[q2, q1] += pi
+            while θfield[q2, q1] <= 0 # ??? < 0
+                 θfield[q2, q1] += pi
             end
         end
     end
 
-    directionfield[isnan(directionfield)] = 0
+    θfield[isnan(θfield)] = 0
 end
 
 ###
@@ -172,62 +171,29 @@ diffF = diffusionF*fieldRes/fieldSize
 diffM = diffusionM*fieldRes/fieldSize
 diffW = diffusionW*fieldRes/fieldSize
 
-dF = zeros(T, fieldResY, fieldResX)
+state = SimulationState{T}(Mfield, Afield, Wfield, Ffield, θfield)
 
-# create temp arrays
-mpot = create(T)
-mpot1 = create(T)
-mpot2 = create(T)
-wpot = create(T)
-apot = create(T)
-apot1 = create(T)
+# destroy
 
+Mfield = nothing
+Afield = nothing
+Wfield = nothing
+Ffield = nothing
+θfield = nothing
 
-buff_Mfield = create(T)
-buff_Wfield = create(T)
-buff_Afield = create(T)
-buff_Dfield = create(T)
-buff_NewDfield = create(T)
-buff_Ffield = create(T)
+temp = similar(state.Mfield)
 
-wlap = create(T)
-alap = create(T)
-mlap = create(T)
-flap = create(T)
-
-row1 = create(T)
-row2 = create(T)
-row3 = create(T)
-row4 = create(T)
-row5 = create(T)
-row6 = create(T)
-
-dW = create(T)
-dA = create(T)
-dM = create(T)
-buff_dF = create(T)
-
-temp = create(T)
-area = create_n4(T)
-const_area = create_const_n4(convert(T, 1.0/8.0))
-
-
-# Make sure that the fields are in the correct DataFormat
-Mfield = convert(Array{T}, Mfield)
-Afield = convert(Array{T}, Afield)
-Wfield = convert(Array{T}, Wfield)
-Ffield = convert(Array{T}, Ffield)
-directionfield = convert(Array{T}, directionfield)
+const_area = convert(Array{T}, fill(1.0/8.0, 4, fieldResX, fieldResY))
 
 # Stability and structure
 stable = false
 timeToStable = -1
 
-old_Mfield = copy(Mfield)
-old_Ffield = copy(Ffield)
-old_Wfield = copy(Wfield)
-old_Afield = copy(Afield)
-old_directionfield = copy(directionfield)
+old_Mfield = copy(state.Mfield)
+old_Ffield = copy(state.Ffield)
+old_Wfield = copy(state.Wfield)
+old_Afield = copy(state.Afield)
+old_θfield = copy(state.θfield)
 
 ###
 # Simulation
@@ -235,8 +201,8 @@ old_directionfield = copy(directionfield)
 
 t = 1
 
-meanMField = mean(Mfield)
-meanAField = mean(Afield)
+meanMField = mean(state.Mfield)
+meanAField = mean(state.Afield)
 
 ###
 # Disturbance steps
@@ -253,210 +219,208 @@ skipFlag = false
 precisionCounter = 0
 bufferStep = 2 # Minimum 1.0 increase to allow for higher precision over a second timeStep
 
-previous_Mfield = copy(Mfield)
-previous_Ffield = copy(Ffield)
-previous_Wfield = copy(Wfield)
-previous_Afield = copy(Afield)
-previous_directionfield = copy(directionfield)
+previous_Mfield = copy(state.Mfield)
+previous_Ffield = copy(state.Ffield)
+previous_Wfield = copy(state.Wfield)
+previous_Afield = copy(state.Afield)
+previous_θfield = copy(state.θfield)
 
 tx = Float64[]
 
 while (t <= tT) && (meanAField < 1.0) !isnan(meanMField) && !isnan(meanAField)
-    previous_Mfield = copy(Mfield)
-    previous_Ffield = copy(Ffield)
-    previous_Wfield = copy(Wfield)
-    previous_Afield = copy(Afield)
-    previous_directionfield = copy(directionfield)
+    previous_Mfield = copy(state.Mfield)
+    previous_Ffield = copy(state.Ffield)
+    previous_Wfield = copy(state.Wfield)
+    previous_Afield = copy(state.Afield)
+    previous_θfield = copy(state.θfield)
 
 	if t in keys(disturbances)
 		val = disturbances[t]
 		method = first(val)
 		args = val[2:end]
 		if method == :global && length(args) == 2
-			(mu, sig) = args
+			(μ, σ) = args
             mask = !FrefillBinMask
-			Mfield += mask .* rand(Normal(mu, sig), (fieldResY, fieldResX))
-			Afield += mask .* rand(Normal(mu, sig), (fieldResY, fieldResX))
-			Ffield += mask .* rand(Normal(mu, sig), (fieldResY, fieldResX))
-			Wfield += mask .* rand(Normal(mu, sig), (fieldResY, fieldResX))
-			directionfield += mask .* rand(Normal(mu, sig), (fieldResY, fieldResX))
+			state.Mfield += mask .* rand(Normal(μ, σ), (fieldResY, fieldResX))
+			state.Afield += mask .* rand(Normal(μ, σ), (fieldResY, fieldResX))
+			state.Ffield += mask .* rand(Normal(μ, σ), (fieldResY, fieldResX))
+			state.Wfield += mask .* rand(Normal(μ, σ), (fieldResY, fieldResX))
+			state.θfield += mask .* rand(Normal(μ, σ), (fieldResY, fieldResX))
 
 			# Normalize
-			Mfield[Mfield .< 0] = 0
-			Afield[Afield .< 0] = 0
-			Ffield[Ffield .< 0] = 0
-			Wfield[Wfield .< 0] = 0
+			state.Mfield[state.Mfield .< 0] = 0
+			state.Afield[state.Afield .< 0] = 0
+			state.Ffield[state.Ffield .< 0] = 0
+			state.Wfield[state.Wfield .< 0] = 0
 
-			directionfield = map(x -> mod(x, pi), directionfield)
+			map!(x -> mod(x, pi), state.θfield, state.θfield)
 		elseif method == :punch_local
-			(x, y, alpha, beta) = args
-			apply_punch_down!(Mfield, x, y, alpha, beta)
-			apply_punch_down!(Afield, x, y, alpha, beta)
-			apply_punch_down!(Ffield, x, y, alpha, beta)
-			apply_punch_down!(Wfield, x, y, alpha, beta)
-            # apply_punch_down!(directionfield, x, y, alpha, beta)
-        elseif method == :punch_random
-            (alpha, beta) = args
-            lin_idx = sample(find((s) -> s > 0.5, Mfield))
-            x, y = ind2sub(size(Mfield), lin_idx)
-            apply_punch_down!(Mfield, x, y, alpha, beta)
-            apply_punch_down!(Afield, x, y, alpha, beta)
-            apply_punch_down!(Ffield, x, y, alpha, beta)
-            apply_punch_down!(Wfield, x, y, alpha, beta)
+			(x, y, α, β) = args
+			apply_punch_down!(state.Mfield, x, y, α, β)
+			apply_punch_down!(state.Afield, x, y, α, β)
+			apply_punch_down!(state.Ffield, x, y, α, β)
+			apply_punch_down!(state.Wfield, x, y, α, β)
+            # apply_punch_down!(θfield, x, y, alpha, beta)
+    elseif method == :punch_random
+      (α, β) = args
+      lin_idx = sample(find((s) -> s > 0.5, state.Mfield))
+      x, y = ind2sub(size(state.Mfield), lin_idx)
+      apply_punch_down!(state.Mfield, x, y, α, β)
+      apply_punch_down!(state.Afield, x, y, α, β)
+      apply_punch_down!(state.Ffield, x, y, α, β)
+      apply_punch_down!(state.Wfield, x, y, α, β)
 		elseif method == :gaussian_blur && length(args) == 1
-			sigma = args[1]
-			imfilter_gaussian_no_nans!(Mfield, [sigma,sigma])
-			imfilter_gaussian_no_nans!(Afield, [sigma,sigma])
-			imfilter_gaussian_no_nans!(Ffield, [sigma,sigma])
-			imfilter_gaussian_no_nans!(Wfield, [sigma,sigma])
-			# directionfield = imfilter_gaussian(directionfield, [sigma,sigma])
+			σ = args[1]
+			imfilter_gaussian_no_nans!(state.Mfield, [σ,σ])
+			imfilter_gaussian_no_nans!(state.Afield, [σ,σ])
+			imfilter_gaussian_no_nans!(state.Ffield, [σ,σ])
+			imfilter_gaussian_no_nans!(state.Wfield, [σ,σ])
+			# θfield = imfilter_gaussian(θfield, [σ,σ])
 		elseif method == :tear_membrane && length(args) == 1
 			tearsize = args[1]
 
 		    tS = iround(fieldRes/2+tearSize*fieldRes/fieldSize)
 		    t0 = iround(fieldRes/2)
-		    Mfield[fieldRes/2:fieldRes,t0:tS] = 0
+		    state.Mfield[fieldRes/2:fieldRes,t0:tS] = 0
 		elseif method == :tear_dfield && length(args) == 1
 			tearsize = args[1]
 
 		    tS = iround(fieldRes/2+tearSize*fieldRes/fieldSize)
 		    t0 = iround(fieldRes/2)
-		    directionfield[fieldRes/2:fieldRes,t0:tS] = pi .* rand(iround(fieldRes-fieldRes/2+1),tS-t0+1)
+		    state.θfield[fieldRes/2:fieldRes,t0:tS] = pi .* rand(iround(fieldRes-fieldRes/2+1),tS-t0+1)
 		elseif method == :tear && length(args) == 1
 			tearsize = args[1]
 
 		    tS = iround(fieldRes/2+tearSize*fieldRes/fieldSize)
 		    t0 = iround(fieldRes/2)
 
-		    Mfield[fieldRes/2:fieldRes,t0:tS] = 0
-		    directionfield[fieldRes/2:fieldRes,t0:tS] = pi .* rand(iround(fieldRes-fieldRes/2+1),tS-t0+1)
+		    state.Mfield[fieldRes/2:fieldRes,t0:tS] = 0
+		    state.θfield[fieldRes/2:fieldRes,t0:tS] = pi .* rand(iround(fieldRes-fieldRes/2+1),tS-t0+1)
 		else
 			warn("Don't know how to handle $method with arguments $args, carry on.")
 		end
 	end
 
     ###
-    # Pushing the fields on the GPU
-    ###
-
-    c_copy!(buff_Mfield, Mfield)
-    c_copy!(buff_Wfield, Wfield)
-    c_copy!(buff_Afield, Afield)
-    c_copy!(buff_Ffield, Ffield)
-    c_copy!(buff_Dfield, directionfield)
-
-    ###
     # calculate potential based on repulsion
     ###
-    area!(buff_Dfield, area)
+    area!(state.Area, state.θfield, long_direction)
 
-    potential!(buff_Mfield, buff_Wfield, area, mpot, wpot, MW_repulsion)
-    potential!(buff_Mfield, buff_Afield, area, mpot1, apot, MA_repulsion)
-    potential!(buff_Mfield, buff_Mfield, area, mpot2, temp, MM_repulsion)
+    potential!(state.Mpot,  state.Wpot, state.Mfield, state.Wfield, state.Area, MW_repulsion)
+    potential!(state.Mpot1, state.Apot, state.Mfield, state.Afield, state.Area, MA_repulsion)
+    potential!(state.Mpot2, temp,       state.Mfield, state.Mfield, state.Area, MM_repulsion)
 
-    potential!(buff_Afield, buff_Afield, const_area, apot1, temp, AA_repulsion)
+    potential!(state.Apot1, temp,       state.Afield, state.Afield, const_area, AA_repulsion)
 
-    c_add!(apot, apot1)
-    c_add!(mpot, mpot1)
-    c_add!(mpot, mpot2)
+    state.Apot += state.Apot1
+    state.Mpot += state.Mpot1 + state.Mpot2
 
     ###
     # move molecules and update directionality
     ###
 
-    diffusion!(buff_Mfield, mpot, mlap)
-    smul!(mlap, diffM)
+    flow!(state.Mflow, state.Mpot)
+    flow!(state.Aflow, state.Apot)
+    flow!(state.Wflow, state.Wpot)
 
-    diffusion!(buff_Wfield, wpot, wlap)
-    smul!(wlap, diffW)
-
-    diffusion!(buff_Afield, apot, alap)
-    smul!(alap, diffA)
-
+    diffusion!(state.Mlap, state.Mfield, state.Mflow, diffM)
+    diffusion!(state.Wlap, state.Wfield, state.Wflow, diffW)
+    diffusion!(state.Alap, state.Afield, state.Aflow, diffA)
 
     # Laplacian for diffusion
-    # Todo calculate in on GPU to be coherent and to minimize data transfers.
-    laplacian!(buff_Ffield, flap)
-    smul!(flap, diffF)
+    laplacian!(state.Flap, state.Ffield, diffF)
 
     # update direction field based on alignment
-    align!(buff_Mfield, buff_Dfield, buff_NewDfield)
-    c_copy!(directionfield, buff_NewDfield)
+    align!(state.θfield, state.Mfield, state.θfield, attractionRate, stepIntegration)
 
     ###
     # reactions
     ##
+    for j in 1:fieldResY
+      for i in 1:fieldResX
+        ##
+        # Calculate row values once
+        ##
+        row1 =  state.Mfield[i, j] ^ m11 * state.Afield[i, j] ^ a11 * state.Ffield[i, j] ^ f11 * state.Wfield[i, j] ^ w11
+        row2 =  state.Mfield[i, j] ^ m12 * state.Afield[i, j] ^ a12 * state.Ffield[i, j] ^ f12 * state.Wfield[i, j] ^ w12
+        row3 =  state.Mfield[i, j] ^ m21 * state.Afield[i, j] ^ a21 * state.Ffield[i, j] ^ f21 * state.Wfield[i, j] ^ w21
+        row4 =  state.Mfield[i, j] ^ m22 * state.Afield[i, j] ^ a22 * state.Ffield[i, j] ^ f22 * state.Wfield[i, j] ^ w22
+        row5 =  state.Mfield[i, j] ^ m31 * state.Afield[i, j] ^ a31 * state.Ffield[i, j] ^ f31 * state.Wfield[i, j] ^ w31
+        row6 =  state.Mfield[i, j] ^ m32 * state.Afield[i, j] ^ a32 * state.Ffield[i, j] ^ f32 * state.Wfield[i, j] ^ w32
 
-    calcRow!(buff_Mfield, buff_Afield, buff_Ffield, buff_Wfield, row1, m11, a11, f11, w11)
-    calcRow!(buff_Mfield, buff_Afield, buff_Ffield, buff_Wfield, row2, m12, a12, f12, w12)
-    calcRow!(buff_Mfield, buff_Afield, buff_Ffield, buff_Wfield, row3, m21, a21, f21, w21)
-    calcRow!(buff_Mfield, buff_Afield, buff_Ffield, buff_Wfield, row4, m22, a22, f22, w22)
-    calcRow!(buff_Mfield, buff_Afield, buff_Ffield, buff_Wfield, row5, m31, a31, f31, w31)
-    calcRow!(buff_Mfield, buff_Afield, buff_Ffield, buff_Wfield, row6, m32, a32, f32, w32)
+        ##
+        # Calculate dA
+        ##
+        state.dA[i, j] = (
+                          ((a12 - a11) * kf1)  * row1 +
+                          ((a11 - a12) * kb2)  * row2 +
+                          ((a22 - a12) * kf2)  * row3 +
+                          ((a21 - a22) * kb2)  * row4 +
+                          ((a32 - a31) * kf3)  * row5 +
+                          ((a31 - a32) * kb3)  * row6
+                        ) / (1 + state.Mfield[i,j]) - decayA * state.Afield[i, j] + state.Alap[i, j]
 
-    ##
-    # Calculate dA
-    ##
+        ##
+        # Calculate dM
+        ##
+        state.dM[i, j] = (
+                          ((m12 - m11) * kf1)  * row1 +
+                          ((m11 - m12) * kb2)  * row2 +
+                          ((m22 - m12) * kf2)  * row3 +
+                          ((m21 - m22) * kb2)  * row4 +
+                          ((m32 - m31) * kf3)  * row5 +
+                          ((m31 - m32) * kb3)  * row6
+                        ) / (1 + state.Afield[i,j]) - decayM * state.Mfield[i, j] + state.Mlap[i, j]
 
-    delta!(row1, row2, row3, row4, row5, row6, dA,
-            fsm(a12, a11, kf1), fsm(a11, a12, kb1), fsm(a22, a21, kf2), fsm(a21, a22, kb2), fsm(a32, a31, kf3), fsm(a31, a32, kb3))
-    delta2!(dA, buff_Mfield, buff_Afield, alap, dA, decayA)
+        ##
+        # Calculate dW
+        ##
+        state.dW[i, j] =  ((w12 - w11) * kf1)  * row1 +
+                          ((w11 - w12) * kb2)  * row2 +
+                          ((w22 - w12) * kf2)  * row3 +
+                          ((w21 - w22) * kb2)  * row4 +
+                          ((w32 - w31) * kf3)  * row5 +
+                          ((w31 - w32) * kb3)  * row6 +
+                          state.Wlap[i, j]
 
-    ##
-    # Calculate dM
-    ##
+        ##
+        # Calculate dF
+        ##
+        state.dF[i, j] =  ((f12 - f11) * kf1)  * row1 +
+                          ((f11 - f12) * kb2)  * row2 +
+                          ((f22 - f12) * kf2)  * row3 +
+                          ((f21 - f22) * kb2)  * row4 +
+                          ((f32 - f31) * kf3)  * row5 +
+                          ((f31 - f32) * kb3)  * row6 +
+                          state.Flap[i, j]
 
-    delta!(row1, row2, row3, row4, row5, row6, dM,
-            fsm(m12, m11, kf1), fsm(m11, m12, kb1), fsm(m22, m21, kf2), fsm(m21, m22, kb2), fsm(m32, m31, kf3), fsm(m31, m32, kb3))
-    delta2!(dM, buff_Afield, buff_Mfield, mlap, dM, decayM)
-
-    ##
-    # Calculate dW
-    ##
-
-    delta!(row1, row2, row3, row4, row5, row6, dW,
-            fsm(w12, w11, kf1), fsm(w11, w12, kb1), fsm(w22, w21, kf2), fsm(w21, w22, kb2), fsm(w32, w31, kf3), fsm(w31, w32, kb3))
-
-    c_add!(dW, wlap)
-
-    ##
-    # Calculate dF
-    ##
-
-    delta!(row1, row2, row3, row4, row5, row6, buff_dF,
-            fsm(f12, f11, kf1), fsm(f11, f12, kb1), fsm(f22, f21, kf2), fsm(f21, f22, kb2), fsm(f32, f31, kf3), fsm(f31, f32, kb3))
-
-    c_add!(buff_dF, flap)
-
-    c_copy!(dF, buff_dF)
-
-    dF[FrefillBinMask] += flowRateF * (saturationF .- Ffield[FrefillBinMask])
+        if FrefillBinMask[i,j]
+          state.dF[i, j] += flowRateF * (saturationF .- state.Ffield[i, j])
+        end
+      end
+    end
 
     dT = 0
 
     # update values
-    smul!(dA, (stepIntegration / precision))
-    c_add!(buff_Afield, dA)
-    c_copy!(Afield, buff_Afield)
-
-    Ffield += dF * (stepIntegration / precision)
-
-    smul!(dM, (stepIntegration / precision))
-    c_add!(buff_Mfield, dM)
-    c_copy!(Mfield, buff_Mfield)
-
-    smul!(dW, (stepIntegration / precision))
-    c_add!(buff_Wfield, dW)
-    c_copy!(Wfield, buff_Wfield)
+    Δ = (stepIntegration / precision)
+    for j in 1:fieldResY
+      for i in 1:fieldResX
+        state.Afield[i, j] += Δ * state.dA[i, j]
+        state.Ffield[i, j] += Δ * state.dF[i, j]
+        state.Mfield[i, j] += Δ * state.dM[i, j]
+        state.Wfield[i, j] += Δ * state.dW[i, j]
+      end
+    end
 
     # calulate stability criteria
 
-    sumabs_dA = sumabs(c_read(dA))
-    sumabs_dM = sumabs(c_read(dM))
-    sumabs_dF = sumabs(dF)
-    sumabs_dW = sumabs(c_read(dW))
+    sumabs_dA = sumabs(state.dA)
+    sumabs_dM = sumabs(state.dM)
+    sumabs_dF = sumabs(state.dF)
+    sumabs_dW = sumabs(state.dW)
 
-    negativeValues = any(Mfield .< 0) || any(Afield .< 0) || any(Ffield .< 0) || any(Wfield .< 0)
+    negativeValues = any(state.Mfield .< 0) || any(state.Afield .< 0) || any(state.Ffield .< 0) || any(state.Wfield .< 0)
 
     if negativeValues
         warn("Integration error at t=$t increase precision from $precision to $(2 * precision)")
@@ -466,11 +430,11 @@ while (t <= tT) && (meanAField < 1.0) !isnan(meanMField) && !isnan(meanAField)
             error("Precision just exceeded 1024 clearly something is wrong here.")
         end
 
-        Mfield = copy(previous_Mfield)
-        Ffield = copy(previous_Ffield)
-        Wfield = copy(previous_Wfield)
-        Afield = copy(previous_Afield)
-        directionfield = copy(previous_directionfield)
+        state.Mfield = copy(previous_Mfield)
+        state.Ffield = copy(previous_Ffield)
+        state.Wfield = copy(previous_Wfield)
+        state.Afield = copy(previous_Afield)
+        state.θfield = copy(previous_θfield)
         skipFlag = true
 
         # If we increase it for the first time
@@ -482,8 +446,8 @@ while (t <= tT) && (meanAField < 1.0) !isnan(meanMField) && !isnan(meanAField)
     end
 
     #save values for visualization
-    meanAField = mean(Afield)
-    meanMField = mean(Mfield)
+    meanAField = mean(state.Afield)
+    meanMField = mean(state.Mfield)
 
     if !skipFlag
         stableCondition = (sumabs_dA < epsilon / precision) && (sumabs_dM < epsilon / precision) #&& (sumabs_dF < epsilon) && (sumabs_dW < epsilon)
@@ -501,17 +465,17 @@ while (t <= tT) && (meanAField < 1.0) !isnan(meanMField) && !isnan(meanAField)
 
         push!(Avec, meanAField)
         push!(Mvec, meanMField)
-        push!(Fvec, mean(Ffield))
-        push!(Wvec, mean(Wfield))
+        push!(Fvec, mean(state.Ffield))
+        push!(Wvec, mean(state.Wfield))
         push!(DAvec, sumabs_dA)
         push!(DMvec, sumabs_dM)
 
         if (t % storeStep == 0)
-          push!(history_A, Afield)
-          push!(history_F, Ffield)
-          push!(history_M, Mfield)
-          push!(history_W, Wfield)
-          push!(history_dir, directionfield)
+          push!(history_A, state.Afield)
+          push!(history_F, state.Ffield)
+          push!(history_M, state.Mfield)
+          push!(history_W, state.Wfield)
+          push!(history_dir, state.θfield)
         end
 
         push!(tx, t)
@@ -547,24 +511,24 @@ while (t <= tT) && (meanAField < 1.0) !isnan(meanMField) && !isnan(meanAField)
           axis([0, t, 0, 0.4])
 
           subplot(245)
-          pcolormesh(Mfield, vmin=0, vmax=0.6)
+          pcolormesh(state.Mfield, vmin=0, vmax=0.6)
           title("Mfield")
 
           subplot(246)
-          pcolormesh(Afield, vmin=0, vmax=0.6)
+          pcolormesh(state.Afield, vmin=0, vmax=0.6)
           title("Afield")
 
           subplot(247)
-          pcolormesh(Ffield, vmin=0, vmax=1)
+          pcolormesh(state.Ffield, vmin=0, vmax=1)
           title("Ffield")
 
 
             subplot(248)
             title("DirectionField")
 
-            U = cos(directionfield)
-            V = sin(directionfield)
-            d1, d2 = size(directionfield)
+            U = cos(state.θfield)
+            V = sin(state.θfield)
+            d1, d2 = size(state.θfield)
             plt.quiver([1:d1], [1:d2], U, V, linewidth=1.5, headwidth = 0.5)
         end
     end
@@ -640,11 +604,11 @@ println("Press any key to exit program.")
 readline(STDIN)
 end
 
-structM = sumabs(old_Mfield .- Mfield)
-structA = sumabs(old_Afield .- Afield)
-structF = sumabs(old_Ffield .- Ffield)
-structW = sumabs(old_Wfield .- Wfield)
-structd = sumabs(old_directionfield .- directionfield)
+structM = sumabs(old_Mfield .- state.Mfield)
+structA = sumabs(old_Afield .- state.Afield)
+structF = sumabs(old_Ffield .- state.Ffield)
+structW = sumabs(old_Wfield .- state.Wfield)
+structd = sumabs(old_θfield .- state.θfield)
 
 valueOfInterest =   if stable
                         if (meanMField >= deathEpsilon) || (meanAField >= deathEpsilon)

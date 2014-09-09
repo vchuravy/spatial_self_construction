@@ -3,7 +3,14 @@ module Simulation
 using ArrayViews
 using NumericExtensions
 
-export la_placian, la_placian!, flow, flow!, diffusion, diffusion!, align, align!, area, area!, potential!, align, align!
+export laplacian, laplacian!,
+       flow, flow!,
+       diffusion, diffusion!,
+       align, align!,
+       area, area!,
+       potential!,
+       align, align!,
+       SimulationState
 
 function get_moore!(out, A, i, j, d1, d2)
     if 1 < i < d1 && 1 < j < d2 # We are away from the edges just use a view
@@ -85,4 +92,6 @@ include("functions/Diffusion.jl")
 include("functions/Area.jl")
 include("functions/Potential.jl")
 include("functions/Align.jl")
-end
+include("functions/SimulationState.jl")
+
+end # Module
