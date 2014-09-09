@@ -94,7 +94,7 @@ alap_old = create(T)
 alap_new = create(T)
 
 diffusionJl!(afield, apot_new, alap_old)
-sim.diffusion!(alap_new, afield, flow_new)
+sim.diffusion!(alap_new, afield, flow_new, 1.0)
 
 test_alap_exact = all(map(==, alap_old, alap_new))
 test_alap_approx = all(map(isapprox, alap_old, alap_new))
